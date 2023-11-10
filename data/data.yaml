@@ -1,0 +1,7 @@
+path: ../data
+train: train/images
+test: test/images
+val: val/images
+
+nc: 4
+names: ["fasade","plantegning","situasjonskart", "snitt"]

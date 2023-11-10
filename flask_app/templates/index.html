@@ -1,0 +1,74 @@
+<!doctype html>
+<html>
+  <head>
+    <title>File Upload</title>
+    <style>
+      /* CSS styles for the button */
+      .analyze-button {
+        background-color: green;
+        color: white;
+        font-size: 24px;
+        padding: 10px 20px;
+        border: none;
+        cursor: pointer;
+        text-decoration: none;
+        display: inline-block;
+      }
+      .delete-button {
+        background-color: red;
+        color: white;
+        font-size: 14px;
+        padding: 5px 10px;
+        border: none;
+        cursor: pointer;
+        text-decoration: none;
+        bottom: 0;
+        display: inline-block;
+      }
+      /* CSS style for positioning logo*/
+      .logo-container {
+        width: 100%;
+        position: fixed;
+        bottom: 0;
+        text-align: center;
+
+      }
+      .logo-container img {
+        width: 250px;
+      }
+    </style>
+
+
+    <script>
+    function confirmDeletion() {
+        return confirm('Er du sikker på at du vil slette alle bildene?');
+    }
+    </script>
+
+  </head>
+  <body>
+    <h1>Last opp fil</h1>
+    <form method="POST" action="" enctype="multipart/form-data">
+      <p><input type="file" name="file"></p>
+      <p><input type="submit" value="Submit"></p>
+    </form>
+
+    <!-- Analyze button -->
+    <a class="analyze-button" href="/analyze">Analyser</a>
+    <hr>
+    {% for file in files %}
+      <img src="{{ url_for('upload', filename=file) }}" style="width: 640px">
+    {% endfor %}
+
+    <!-- Delete uploads button -->
+    <form action="/delete-uploads" method="post" onsubmit="return confirmDeletion()">
+    <button type="submit" class="delete-button">Slett alle bilder</button>
+    </form>
+
+    <!-- Logo container -->
+    <div class="logo-container">
+      <img src="/static/uploads/logo/norkart_logo.png" alt="Logo">
+    </div>
+
+  </body>
+</html>
