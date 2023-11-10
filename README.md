@@ -6,6 +6,7 @@ Formålet med prosjektet var å undersøke hvordan kunstig intelligens kan bruke
 
 I dette prosjektet ble det trent en YOLOv8 modell for å detektere og klassifisere type tegning, som kan potensielt brukes til å sjekke hvilke tegninger er med i søknaden. Videre arbeid i prosjektet vil innebære å trene modellen på å detektere opplysninger som er påkrevde i de ulike tegningstypene. 
 
+
 ## Requirements
 - Python
 - Python PIP
@@ -72,19 +73,40 @@ Tegningene er hentet fra Kristiansand kommune byggesaksarkiv: [link](https://ope
  
   
 ### YOLOv8 modell
+
 #### Mappestruktur
- - data/
-    - test/
-      - images
-      - labels
-    - train/
-      - images
-      - labels
-    - val/
-       - images
-       - labels
-    - data.yaml
-  - yolo_model.py
+```
+
+CAD-AID/
+    ├──data/
+    │   ├── test/
+    │   │   └── images/
+    │   │   └── labels/
+    │   │          
+    │   │
+    │   ├──train/
+    │   │   └── images/
+    │   │   └── labels
+    │   │
+    │   ├──val/
+    │   │  └── images/
+    │   │  └── labels/
+    │   └── data.yaml
+    │
+    ├── runs/
+    │   └── detect/
+    │       └── train
+    │            └── weights/
+    │                 └── best.pt
+    │               
+    ├──data_prep/
+    │  └── convertFromPDF.py
+    │  └── folder_split.py
+    │
+    ├──images/
+    │
+    ├── yolo_model.py
+```
 
 ##### data.yaml
 For å trene med eget datasett, må vi ha en data.yaml fil som definerer "pathen" til treningsdata, antall klasser og navnet på alle labels:
@@ -148,30 +170,57 @@ metrics = model.val()
 
 
 ### Flask demo
-En demo av modellens resultater er visualisert i en enkel Flask webapplikasjon. 
+En demo av modellens resultater er visualisert i en enkel Flask webapplikasjon.  
+
+Appens funksjonalitet:  
+* Last opp flere bilder samtidig
+* Kjør prediksjon ved å trykke på "Analyser" som viser objektdeteksjonen i et nytt vindu.
+* Tilbakeknapp for gå tilbake til startvinduet
+* "Slett alle bilder"-knapp som sletter alle bilder dersom man vil starte på nytt
+* Alle bildene som lastes opp lagres i "uploads" mappa, og slettes når programmet stopper
+* I "uploads/logo/norkart_logo.png er det lagt inn en logo, denne vil ikke slettes. 
 #### Mappestruktur
-- flask_app/
-    - static/
-      - uploads/
-      
-    - flask_images/
-      - uploaded_image.jpg
-- templates/
-  - upload.html
-- app.py
+
+```
+flask_app/
+│
+├── static/
+│   │
+│   └── uploads/
+│       └── logo/
+│           └── logo_norkart.png
+│
+├── templates/
+│   │
+│   ├── index.html
+│   └── predictions.html
+│
+└── app.py
 
 
+```
+#### Koden
+#### app.py
+Kjør denne fila for å teste demoen.  
+
+Håndterer opplastning av bilder, sletting av bilder i "uploads" mappa og YOLO-modellen.
+#### index.html
+HTML koden til den første siden som vises.
+
+#### prediction.html
+HTML koden som håndterer vinduet der resultatene fra prediksjonen vises. 
 
 ## Resultater og videre arbeid
-Modellen som ga best resultat ble trent på mer enn 450 bilder over 30 epochs. Denne modellen løser første del av prosjektet
-som er å detektere hvilke tegninger er med i søknaden.  
+Modellen som ga best resultat ble trent på mer enn 250 bilder over 30 epochs. Vektene fra siste trening ligger under ´runs/detect/train/weights/best.pt´  
+Denne modellen løser første del av prosjektet som er å detektere hvilke tegninger er med i søknaden.  
 Ut i fra resultatene så langt, har modellen noe problemer med å skille 
 snittegninger og fasadetegninger, som kan løses ved å lable mer data.  
 
 
 ### Lable mer data
 * Lable flere tegninger slik at datasettet blir balansert. Oversikt over antall labels i datasettet kan du finne under `runs\detect\train3\labels.jpg`.
-![img.png](img.png)
+* Lable flere typer tegninger: terrengprofil, perspektivtegninger osv
+
 
 ### Legge til flere bakgrunnsbilder
 Legge til flere bilder som modellen ikke skal detektere, feks tekstdokumenter fra byggesaker, bilder av hus osv.
@@ -209,5 +258,6 @@ av få eksempler.
 Et tips kan være å lagre disse bildene i mappa "low_quality_drawings"
 dersom man finner slike eksempler fortløpende under prosjektarbeidet.
 Det er allerede lagt inn noen få eksempler på slike tegninger.
-
-Et annet tips er å lage noen slike tegninger selv.
+### Flask app
+* Legge til funksjon slik at det kan lastes opp PDF filer i appen som omgjøres til jpg. Sjekk om "convertFromPDF.py" i mappa "dataPrep" kan skrives litt om og brukes i appen.
+* Modellens path som brukes i "app.py" er den samme fra "yolo_model.py". Fiks i koden for å unngå å endre stien i to ulike filer. 
