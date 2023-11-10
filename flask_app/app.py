@@ -26,6 +26,7 @@ def delete_uploaded_files():
             print(f"Error deleting {file_path}: {e}")
 atexit.register(delete_uploaded_files)
 
+# Delete uploaded files with button when activated by POST request
 @app.route('/delete-uploads', methods=['POST'])
 def delete_uploads():
     upload_folder = app.config['UPLOAD_PATH']
@@ -71,7 +72,7 @@ def analyze():
     image_files = [f for f in os.listdir(uploaded_folder) if f.endswith(tuple(app.config['UPLOAD_EXTENSIONS']))]
     image_data_list = []
 
-    # loop though images and predict
+    # loop though images in the folder and predict
     for image_file in image_files:
         img_path = os.path.join(uploaded_folder, image_file)
         results = model.predict(img_path, save=False, stream=True)
