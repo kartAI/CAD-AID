@@ -200,15 +200,10 @@ flask_app/
 
 ```
 #### Koden
-#### app.py
-Kjør denne fila for å teste demoen.  
-
-Håndterer opplastning av bilder, sletting av bilder i "uploads" mappa og YOLO-modellen.
-#### index.html
-HTML koden til den første siden som vises.
-
-#### prediction.html
-HTML koden som håndterer vinduet der resultatene fra prediksjonen vises. 
+Kjør scriptet app.py for å teste demoen. I dette scriptet håndteres opplastningen av bilder som lagres i "uploads" mappa, sletting av bildene når programmet avsluttes eller dersom man trykker på "slett" knappen i programmet, samt prediksjon med yolo modellen.
+I "index.html" fila håndteres all html koden og litt CSS styling til startsiden. 
+"predictions.html" er html koden til en ny side der resultatene fra YOLO modellen vises, altså bildene med predikerte bounding bokser og klasse label.
+Se mer dokumentasjon i selve koden. 
 
 ## Resultater og videre arbeid
 Modellen som ga best resultat ble trent på mer enn 250 bilder over 30 epochs. Vektene fra siste trening ligger under ´runs/detect/train/weights/best.pt´  
