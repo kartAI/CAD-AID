@@ -1,0 +1,10 @@
+.idea
+.DS_Store
+fast_api/static/uploads
+flask_app/.DS_Store
+flask_app/static/.DS_Store
+runs/DS_Store
+runs/detect/.DS_Store
+runs/detect/train/.DS_Store
+data/.DS_Store
+data/test/.DS_Store
