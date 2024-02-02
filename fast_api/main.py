@@ -17,12 +17,26 @@ import re
 app = FastAPI()
 
 # store uploaded images temporary folder
-UPLOAD_DIRECTORY = Path("/static/uploads")
+UPLOAD_DIRECTORY = Path("fast_api/static/uploads")
 UPLOAD_DIRECTORY.mkdir(parents=True, exist_ok=True)
 
+def check_confidence(label_conf):
+    high_conf_drawings = []
+    low_conf_drawings = []
 
-# Get the predicted values from json
-def find_value(detections_res: [], key: str):
+    for label, conf in label_conf:
+        if conf > 0.60:
+            high_conf_drawings.append(label)
+
+        # Decide how to handle drawings with lower confidence
+        elif 0.20 < conf < 0.59:
+            low_conf_drawings.append([label,conf])
+
+    return high_conf_drawings,low_conf_drawings
+
+
+# Get the predicted key-value pairs from json
+def find_value(detections_res: str, drawing_name: str, conf: str):
     try:
         json_data = json.loads(detections_res)
     except json.JSONDecodeError as e:
@@ -30,30 +44,37 @@ def find_value(detections_res: [], key: str):
         return None
 
     if isinstance(json_data, list):
+        labelname_conf_combined = []
+
         for item in json_data:
-            if key in item:
-                value = item[key]
+            temp = []
+            if drawing_name in item:
+                value = item[drawing_name]
+                temp.append(value)
+            if conf in item:
+                value = item[conf]
                 if isinstance(value, (int, float)):
-                    print(f"{key} value: {value}, {round(float(value), 2)}")
-                    return round(float(value), 2)
-                else:
-                    print(f"{key} value: {value}")
-                    return str(value)
-        print(f"{key} not found in any item of the JSON.")
-        return None
+                    temp.append(round(float(value), 2))
+            labelname_conf_combined.append(temp)
+
+        return labelname_conf_combined
+
     else:
         print("Invalid JSON format or not a list.")
         return None
 
-
 def check_detections(detections_json):
-    # Return message if no detections or if conf. < some value
-    if find_value(detections_json[0], "name") is None or find_value(detections_json[0],"confidence") < 0.60:
+    # Return message if no detections
+    if len(find_value(detections_json[0], "name","confidence")) == 0:
         return {"Er du sikker på at dette er riktig tegning?"}
 
     else:
-        drawing_type=find_value(detections_json[0],"name")
-        return drawing_type
+        label_conf_combined=find_value(detections_json[0],"name","confidence")
+        # check if confidence is above a threshold value
+        high_conf_drawings, low_conf_drawings = check_confidence(label_conf_combined)
+        return high_conf_drawings
+
+
 @app.post("/detect/")
 async def detect_objects (uploaded_file: UploadFile = File(...)):
     model = YOLO("runs/detect/train/weights/best.pt")
@@ -88,7 +109,7 @@ async def detect_objects (uploaded_file: UploadFile = File(...)):
     # Check detections in drawing and return message
     drawing_check = check_detections(detections_json)
 
+
+
     return {"message": drawing_check}
 
-if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=8000)
