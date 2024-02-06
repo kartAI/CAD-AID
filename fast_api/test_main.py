@@ -6,7 +6,7 @@ import os
 client = TestClient(app)
 
 
-def test_detect_objects_with_image ():
+def test_detect_objects_with_image():
     # Path to a test image file
     test_image_path = 'static/uploads/2Enebolig_page_1.jpg'
 
