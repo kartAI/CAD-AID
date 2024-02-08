@@ -4,9 +4,10 @@ from ultralytics import YOLO
 import numpy as np
 from PIL import Image
 import os
+import json
 
 # Load model
-model = YOLO("runs/detect/train/weights/best.pt")
+model = YOLO("runs/detect/train3/weights/best.pt")
 
 # Train model
 def train_model():
@@ -14,17 +15,27 @@ def train_model():
     metrics = model.val()
 def prediction(img):
 
-    #img = "data/test/images/Scan 19 Oct 2023 at 15.51_page_1.jpg"
-    results = model.predict(img, save=False, stream=True)
+
+    results = model(img, save=False, stream=True)
 
     image = cv2.imread(img)
 
     for r in results:
+
         im_array = r.plot()  # plot a BGR numpy array of predictions
         im = Image.fromarray(im_array[..., ::-1])  # RGB PIL image
         im.show()  # show image
 
-
-
 #train_model()
-#prediction(img)
+
+img="data/test/images/fasade43.jpg"
+
+#img= "fast_api/static/uploads/04771a42106a75cfbbc2bc021823aaf5.jpg"
+results = model(img,save=False)
+detections_json = []
+for r in results:
+    print(r)
+    detections = r.tojson()
+    detections_json.append(detections)
+
+print(detections_json)

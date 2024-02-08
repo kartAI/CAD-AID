@@ -14,9 +14,9 @@ import random
 import shutil
 
 # Define the source and destination folders
-source_images_folder = "images"
-source_labels_folder = "labels"
-destination_folder = "data"
+source_images_folder = "../images"
+source_labels_folder = "../labels"
+destination_folder = "../data"
 
 # Define the split ratios
 train_ratio = 0.8

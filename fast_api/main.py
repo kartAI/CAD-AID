@@ -29,7 +29,7 @@ def check_confidence(label_conf):
             high_conf_drawings.append(label)
 
         # Decide how to handle drawings with lower confidence
-        elif 0.20 < conf < 0.59:
+        elif 0.20 < conf < 0.60:
             low_conf_drawings.append([label,conf])
 
     return high_conf_drawings,low_conf_drawings
@@ -108,8 +108,6 @@ async def detect_objects (uploaded_file: UploadFile = File(...)):
 
     # Check detections in drawing and return message
     drawing_check = check_detections(detections_json)
-
-
 
     return {"message": drawing_check}
 

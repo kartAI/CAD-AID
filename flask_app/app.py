@@ -5,10 +5,11 @@ from ultralytics import YOLO
 import atexit
 import cv2
 import base64
+from pdf2image import convert_from_path
 
 
 app = Flask(__name__)
-app.config['UPLOAD_EXTENSIONS'] = ['.jpg', '.png', '.jpeg']
+app.config['UPLOAD_EXTENSIONS'] = ['.jpg', '.png', '.jpeg','.pdf','.PDF']
 app.config['UPLOAD_PATH'] = 'static/uploads'
 
 
@@ -73,8 +74,13 @@ def analyze():
 
     # loop though images and predict
     for image_file in image_files:
+
         img_path = os.path.join(uploaded_folder, image_file)
-        results = model.predict(img_path, save=False, stream=True)
+
+        # convert from PDF to image
+        image = convert_from_path(img_path)
+
+        results = model.predict(image, save=False, stream=True)
 
         for r in results:
             # encode array of image to bytes
