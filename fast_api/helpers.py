@@ -26,6 +26,9 @@ def find_value(detections: [], key: str) -> str | float | None:
 
 
 def confidence_status(confidence: float, drawing_type: str) -> Feedback:
+    print(confidence)
+    print(confidence > 0.60)
+    print(0.20 < confidence < 0.59)
     if confidence > 0.60:
         return {
             "status": Status.success.value,
@@ -39,7 +42,9 @@ def confidence_status(confidence: float, drawing_type: str) -> Feedback:
 
 
 def check_detections(detections: []) -> Detection:
+    print('detections', detections)
     drawing_type: str | None = find_value(detections, "name")
+    print('drawing_type: ', drawing_type)
     if not drawing_type:
         return {
             "type": {
