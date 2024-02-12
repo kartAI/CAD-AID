@@ -44,7 +44,11 @@ def pdf_converter(images_folder):
 
 
 # define folder name
-images_folder = "images"
+base_dir = os.path.dirname(os.path.dirname(__file__))
+
+
+new_images_dir = os.path.join(base_dir, "images")
+
 # convert all images in folder to .jpg
-pdf_converter(images_folder)
+pdf_converter(new_images_dir)
 

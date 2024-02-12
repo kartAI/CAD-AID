@@ -7,5 +7,5 @@ flask_app/static/.DS_Store
 runs/DS_Store
 runs/detect/.DS_Store
 runs/detect/train/.DS_Store
-data/.DS_Store
-data/test/.DS_Store
+data_old/.DS_Store
+data_old/test/.DS_Store
