@@ -1,4 +1,4 @@
-path: ../data
+path: ../data_old
 train: train/images
 test: test/images
 val: val/images

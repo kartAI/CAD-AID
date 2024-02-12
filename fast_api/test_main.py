@@ -17,7 +17,7 @@ def test_detect_objects_with_image():
 
     # Open the test image file in binary mode
     with open(test_image_path, 'rb') as test_image:
-        # Create a dict to simulate form data with a file upload
+        # Create a dict to simulate form data_old with a file upload
         files = {'uploaded_file': (os.path.basename(test_image_path), test_image, 'image/jpeg')}
 
         # Send a POST request to the endpoint with the test image
