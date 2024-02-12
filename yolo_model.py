@@ -6,15 +6,15 @@ from PIL import Image
 import os
 
 # Load model
-model = YOLO("runs/detect/train/weights/best.pt")
+model = YOLO("runs/detect/train6/weights/best.pt")
 
 # Train model
 def train_model():
-    model.train(data="data/data.yaml", epochs=30,batch=8)
+    model.train(data='data/data.yaml', epochs=20)
     metrics = model.val()
 def prediction(img):
 
-    #img = "data/test/images/Scan 19 Oct 2023 at 15.51_page_1.jpg"
+    #img = "data_old/test/images/Scan 19 Oct 2023 at 15.51_page_1.jpg"
     results = model.predict(img, save=False, stream=True)
 
     image = cv2.imread(img)
@@ -25,6 +25,6 @@ def prediction(img):
         im.show()  # show image
 
 
-
+img= "low_quality_drawings/Margretes vei 18_page_5.jpg"
 #train_model()
-#prediction(img)
+prediction(img)
