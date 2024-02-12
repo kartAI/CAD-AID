@@ -84,7 +84,7 @@ def analyze():
             # encode the imagebytes to base64-encoded string
             image_base64 = base64.b64encode(image_bytes).decode('utf-8')
 
-            # Add the base64-encoded image data to the list
+            # Add the base64-encoded image data_old to the list
             image_data_list.append(image_base64)
     return render_template('predictions.html', image_data_list=image_data_list)
 

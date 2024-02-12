@@ -1,7 +1,7 @@
 task: detect
 mode: train
 model: runs/detect/train/weights/best.pt
-data: data/data.yaml
+data: data_old/data_old.yaml
 epochs: 30
 patience: 50
 batch: 8
