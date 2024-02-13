@@ -1,6 +1,7 @@
 from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 import cv2
+import os
 from fastapi import FastAPI, UploadFile
 from ultralytics import YOLO
 from pathlib import Path
@@ -24,7 +25,7 @@ app.add_middleware(
 )
 
 # store uploaded images temporary folder
-UPLOAD_DIRECTORY = Path("/static/uploads")
+UPLOAD_DIRECTORY = Path("static/uploads")
 UPLOAD_DIRECTORY.mkdir(parents=True, exist_ok=True)
 
 
