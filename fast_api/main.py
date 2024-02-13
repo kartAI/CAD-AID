@@ -36,6 +36,8 @@ async def detect_objects(uploaded_files: List[UploadFile]):
 
     model = YOLO(model_path)
 
+    print("Kommer inn: ", model.export)
+
     response_json: Dict[str | None, Dict[str, Detection]] = {}
 
     for uploaded_file in uploaded_files:
@@ -65,8 +67,6 @@ async def detect_objects(uploaded_files: List[UploadFile]):
             results = model.predict(image)
             for r in results:
                 detections = r.tojson()
-                print("debugger jpg")
-                print(check_detections(detections))
                 response_json = {
                     **response_json,
                     uploaded_file.filename: check_detections(detections)
