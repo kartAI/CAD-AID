@@ -1,8 +1,4 @@
 
-import sys
-sys.path.append('/Users/juliajorstad/Sinhala-ParSeq-main')
-
-from pretrained_model import pretrained
 
 import cv2
 from ultralytics import YOLO
