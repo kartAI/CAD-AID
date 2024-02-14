@@ -12,7 +12,7 @@ app.config['UPLOAD_EXTENSIONS'] = ['.jpg', '.png', '.jpeg']
 app.config['UPLOAD_PATH'] = 'static/uploads'
 
 
-model = YOLO("../runs/detect/train/weights/best.pt")
+model = YOLO("../runs/detect/Nora/train/weights/best.pt")
 
 # Delete uploaded files when program stops
 def delete_uploaded_files():
