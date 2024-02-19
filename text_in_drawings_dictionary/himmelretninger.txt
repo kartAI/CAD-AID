@@ -1,0 +1,4 @@
+Nord
+Vest
+Øst
+Sør
