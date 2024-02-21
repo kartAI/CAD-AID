@@ -31,15 +31,13 @@ UPLOAD_DIRECTORY.mkdir(parents=True, exist_ok=True)
 
 @app.post("/detect/")
 async def detect_objects(uploaded_files: List[UploadFile]):
-    model_path = r"../runs/detect/Nora/train2/weights/best.pt"
+    model_path = r"../runs/detect/Nora/train/weights/best.pt"
 
     # os.path.exists(model_path)
 
     model = YOLO(model_path)
 
-    print("Kommer inn: ", model.export)
-
-    response_json: Dict[str | None, Dict[str, Detection]] = {}
+    response_json = {}
 
     for uploaded_file in uploaded_files:
         # Process the uploaded image for object detection
@@ -59,7 +57,7 @@ async def detect_objects(uploaded_files: List[UploadFile]):
                     detections = r.tojson()
                     response_json = {
                         **response_json,
-                        uploaded_file.filename: check_detections(detections)
+                        **check_detections(detections)
                     }
 
         # read file directly as an image from folder
@@ -68,9 +66,10 @@ async def detect_objects(uploaded_files: List[UploadFile]):
             results = model.predict(image)
             for r in results:
                 detections = r.tojson()
+                print(detections)
                 response_json = {
                     **response_json,
-                    uploaded_file.filename: check_detections(detections)
+                    **check_detections(detections)
                 }
 
     return response_json

@@ -13,6 +13,13 @@ class Feedback(BaseModel):
     message: str
 
 
-class Detection(BaseModel):
-    type: Feedback | None = None
+class Detection:
+    plantegning: bool
+    snitt: bool
+    situasjonskart: bool
+    fasade: bool
+
+
+class Validation(BaseModel):
     sky_direction: Feedback | None = None
+    scale: Feedback | None = None

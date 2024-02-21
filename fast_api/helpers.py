@@ -1,60 +1,30 @@
 import json
+
+from sympy import false, true
+
 from models import Detection, Feedback, Status
 
-
-# support int and str value
-def find_value(detections: [], key: str) -> str | float | None:
-    try:
-        json_data = json.loads(detections)
-    except json.JSONDecodeError as e:
-        print(f"Error decoding JSON: {e}")
-        return None
-
-    if isinstance(json_data, list):
-        for item in json_data:
-            if key in item:
-                value = item[key]
-                if isinstance(value, (int, float)):
-                    return round(float(value), 2)
-                else:
-                    return str(value)
-        print(f"{key} not found in any item of the JSON.")
-        return None
-    else:
-        print("Invalid JSON format or not a list.")
-        return None
-
-
-def confidence_status(confidence: float, drawing_type: str) -> Feedback:
-    print(confidence)
-    print(confidence > 0.60)
-    print(0.20 < confidence < 0.59)
+def confidence_status(confidence: float) -> bool:
     if confidence > 0.60:
-        return {
-            "status": Status.success.value,
-            "message": f"AI modellen er ganske sikker på at dette er en {drawing_type}"
-        }
+        return True
     elif 0.20 < confidence < 0.59:
-        return {
-            "status": Status.warning.value,
-            "message": f"AI modellen er usikker på om dette er en {drawing_type}"
-        }
+        return False
 
 
 def check_detections(detections: []) -> Detection:
     print('detections', detections)
-    drawing_type: str | None = find_value(detections, "name")
-    print('drawing_type: ', drawing_type)
-    if not drawing_type:
-        return {
-            "type": {
-                "status": Status.error.value,
-                "message": "Er du sikker på at dette er riktig tegning?"
-            }
-        }
-    else:
-        confidence = find_value(detections, "confidence")
-        confidence_response = confidence_status(confidence, drawing_type)
-        return {
-            "type": confidence_response
-        }
+
+    detections_res: Detection = {
+        'plantegning': False,
+        'snitt': False,
+        'situasjonskart': False,
+        'fasade': False
+    }
+
+    for d in json.loads(detections):
+        drawing_type = d["name"]
+        confidence = d["confidence"]
+        validate = confidence_status(confidence)
+        detections_res[drawing_type] = validate
+
+    return detections_res
