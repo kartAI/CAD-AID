@@ -21,7 +21,9 @@ def easy_ocr_detection(image):
 		bounding_boxes.append(result[0])
 		decoded_labels.append(result[1])
 
-	return bounding_boxes,decoded_labels
+	print(decoded_labels)
+	print(bounding_boxes)
+	return decoded_labels
 
 # Plot the detected bboxes for text in image
 def plot_text_bboxes(bounding_boxes, image):

@@ -3,6 +3,24 @@ import json
 from sympy import false, true
 
 from models import Detection, Feedback, Status
+import easyocr
+
+
+def easy_ocr_detection(image):
+	reader = easyocr.Reader(['no'])
+	results = reader.readtext(image)
+
+	bounding_boxes = []
+	decoded_labels = []
+
+	for result in results:
+		bounding_boxes.append(result[0])
+		decoded_labels.append(result[1])
+
+	print(decoded_labels)
+	print(bounding_boxes)
+	return decoded_labels
+
 
 def confidence_status(confidence: float) -> bool:
     if confidence > 0.60:

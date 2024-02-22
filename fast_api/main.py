@@ -6,10 +6,10 @@ from fastapi import FastAPI, UploadFile
 from ultralytics import YOLO
 from pathlib import Path
 from pdf2image import convert_from_path
-from helpers import check_detections
+from helpers import check_detections, easy_ocr_detection
 from typing import Dict, List
 from models import Detection
-
+import regex
 app = FastAPI()
 
 origins = [
@@ -59,17 +59,42 @@ async def detect_objects(uploaded_files: List[UploadFile]):
                         **response_json,
                         **check_detections(detections)
                     }
+                include = False
+                for ocr in ocr_results:
+                    pattern = r"\d+:\d+"
+                    if regex.match(pattern, ocr):
+                        include = True
+                if not include:
+                    response_json = {
+                        **response_json,
+                        uploaded_file.filename: {
+                            'scale': 'noo'
+                        }
+                    }
+
 
         # read file directly as an image from folder
         elif uploaded_file.filename.lower().endswith(('.jpg', '.jpeg', '.png')):
             image = cv2.imread(str(file_path))
             results = model.predict(image)
+            ocr_results = easy_ocr_detection(image)
             for r in results:
                 detections = r.tojson()
-                print(detections)
                 response_json = {
                     **response_json,
                     **check_detections(detections)
+                }
+            include = False
+            for ocr in ocr_results:
+                pattern = r"\d+:\d+"
+                if regex.match(pattern, ocr):
+                    include = True
+            if not include:
+                response_json = {
+                    **response_json,
+                    uploaded_file.filename: {
+                        'scale': 'noo'
+                    }
                 }
 
     return response_json
