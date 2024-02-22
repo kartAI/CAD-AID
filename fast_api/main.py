@@ -60,6 +60,7 @@ async def detect_objects(uploaded_files: List[UploadFile]):
                         **check_detections(detections)
                     }
                 include = False
+                ocr_results = easy_ocr_detection(image)
                 for ocr in ocr_results:
                     pattern = r"\d+:\d+"
                     if regex.match(pattern, ocr):
@@ -77,7 +78,6 @@ async def detect_objects(uploaded_files: List[UploadFile]):
         elif uploaded_file.filename.lower().endswith(('.jpg', '.jpeg', '.png')):
             image = cv2.imread(str(file_path))
             results = model.predict(image)
-            ocr_results = easy_ocr_detection(image)
             for r in results:
                 detections = r.tojson()
                 response_json = {
@@ -85,6 +85,7 @@ async def detect_objects(uploaded_files: List[UploadFile]):
                     **check_detections(detections)
                 }
             include = False
+            ocr_results = easy_ocr_detection(image)
             for ocr in ocr_results:
                 pattern = r"\d+:\d+"
                 if regex.match(pattern, ocr):
