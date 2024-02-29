@@ -5,7 +5,7 @@ from fastapi import FastAPI, UploadFile
 from ultralytics import YOLO
 from pathlib import Path
 from pdf2image import convert_from_path
-from typing import Dict, List
+from typing import List
 from nora_detection import nora_detection
 from ada_detection import ada_detection
 

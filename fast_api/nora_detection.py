@@ -27,16 +27,14 @@ def nora_detection(image) -> dict:
 
     predict_results = model.predict(image)
 
-    for r in predict_results:
-        detections_json = r.tojson()
-        for d in json.loads(detections_json):
-            drawing_type: str | None = find_value(d, "name")
-            if drawing_type:
-                confidence_value = find_value(d, "confidence")
-                is_confident = confidence_status(confidence_value)
-                if is_confident:
-                    drawing_types = {
-                        **drawing_types,
-                        drawing_type: True
-                    }
+    for d in json.loads(predict_results[0].tojson()):
+        drawing_type: str | None = find_value(d, "name")
+        if drawing_type:
+            confidence_value = find_value(d, "confidence")
+            is_confident = confidence_status(confidence_value)
+            if is_confident:
+                drawing_types = {
+                    **drawing_types,
+                    drawing_type: True
+                }
     return drawing_types
