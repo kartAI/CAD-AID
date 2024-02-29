@@ -45,18 +45,13 @@ async def detect_objects(uploaded_files: List[UploadFile]):
         if uploaded_file.filename.lower().endswith('.pdf'):
             input_images = convert_from_path(file_path)
             for image in input_images:
+                nora: list = nora_detection(image)
 
-                response_json = {
-                    **response_json,
-                    **nora_detection(image),
-                    'file_name': uploaded_file.filename
-                }
-                response_json = {
-                    **response_json,
-                    **ada_detection(image, response_json)
-                }
-
-
+                response_json.append({
+                    'drawing_types': nora,
+                    'file_name': uploaded_file.filename,
+                    **ada_detection(image, nora)
+                })
 
         # read file directly as an image from folder
         elif uploaded_file.filename.lower().endswith(('.jpg', '.jpeg', '.png')):
