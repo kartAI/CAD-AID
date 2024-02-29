@@ -2,12 +2,12 @@ from fastapi.middleware.cors import CORSMiddleware
 import cv2
 import os
 from fastapi import FastAPI, UploadFile
-from ultralytics import YOLO
 from pathlib import Path
 from pdf2image import convert_from_path
 from typing import List
 from nora_detection import nora_detection
 from ada_detection import ada_detection
+from json_response_converter import json_response_converter
 
 app = FastAPI()
 
@@ -31,7 +31,7 @@ UPLOAD_DIRECTORY.mkdir(parents=True, exist_ok=True)
 @app.post("/detect/")
 async def detect_objects(uploaded_files: List[UploadFile]):
 
-    response_json = []
+    detection_response = []
     for uploaded_file in uploaded_files:
         # Process the uploaded image for object detection
         file_path = UPLOAD_DIRECTORY/uploaded_file.filename
@@ -47,7 +47,7 @@ async def detect_objects(uploaded_files: List[UploadFile]):
             for image in input_images:
                 nora: list = nora_detection(image)
 
-                response_json.append({
+                detection_response.append({
                     'drawing_types': nora,
                     'file_name': uploaded_file.filename,
                     **ada_detection(image, nora)
@@ -58,10 +58,10 @@ async def detect_objects(uploaded_files: List[UploadFile]):
             image = cv2.imread(str(file_path))
             nora: list = nora_detection(image)
 
-            response_json.append({
+            detection_response.append({
                 'drawing_types': nora,
                 'file_name': uploaded_file.filename,
                 **ada_detection(image, nora)
             })
         os.remove(file_path)
-    return response_json
+    return json_response_converter(detection_response)
