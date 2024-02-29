@@ -31,7 +31,6 @@ UPLOAD_DIRECTORY.mkdir(parents=True, exist_ok=True)
 @app.post("/detect/")
 async def detect_objects(uploaded_files: List[UploadFile]):
 
-    yolo_model = YOLO(r"../runs/detect/Nora/train/weights/best.pt")
     response_json = []
     for uploaded_file in uploaded_files:
         # Process the uploaded image for object detection
@@ -62,10 +61,10 @@ async def detect_objects(uploaded_files: List[UploadFile]):
         # read file directly as an image from folder
         elif uploaded_file.filename.lower().endswith(('.jpg', '.jpeg', '.png')):
             image = cv2.imread(str(file_path))
-            nora = nora_detection(image)
+            nora: list = nora_detection(image)
 
             response_json.append({
-                **nora,
+                'drawing_types': nora,
                 'file_name': uploaded_file.filename,
                 **ada_detection(image, nora)
             })

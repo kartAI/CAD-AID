@@ -1,14 +1,13 @@
 import easyocr
 import regex
-from regex_patterns import scale_pattern, cardinal_direction_pattern
+from regex_patterns import scale_pattern, cardinal_direction_pattern, room_pattern
 
 
-def ada_detection(image, file_type):
+def ada_detection(image, file_types):
     obj = {}
 
-    # dette skal fikses
-    if 'fasade' in file_type and file_type['fasade']:
-
+    # midlertidig if
+    if 'fasade' in file_types or 'plantegning' in file_types:
         reader = easyocr.Reader(['no'])
         results = reader.readtext(image)
 
@@ -17,25 +16,21 @@ def ada_detection(image, file_type):
         for result in results:
             decoded_labels.append(result[1])
 
-        include = False
-        include_direction = False
-
-        for ocr_label in decoded_labels:
-            if regex.search(scale_pattern, ocr_label):
-                include = True
-            if regex.search(cardinal_direction_pattern, ocr_label.lower()):
-                include_direction = True
-
-        print(include, include_direction)
-        if not include:
-            obj = {
-                **obj,
-                'scale': 'Mangler målestokk'
+        conditions = {
+            'fasade': {
+                'scale': (scale_pattern, 'Mangler målestokk'),
+                'cardinal_direction': (cardinal_direction_pattern, 'Mangler himmelretning')
+            },
+            'plantegning': {
+                'room_names': (room_pattern, 'Mangler romnavn')
             }
-        if not include_direction:
-            obj = {
-                **obj,
-                'cardinal_direction': 'Mangler himmelretning'
-            }
-        print(obj)
+        }
+
+        for file_type in file_types:
+            for drawing_type, sub_conditions in conditions.items():
+                if drawing_type == file_type:
+                    for condition, (pattern, message) in sub_conditions.items():
+                        if not any(regex.search(pattern, ocr_label.lower()) for ocr_label in decoded_labels):
+                            obj[condition] = message
+
     return obj
