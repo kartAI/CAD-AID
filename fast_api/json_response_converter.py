@@ -15,9 +15,8 @@ def json_response_converter(detection_response: List[Detection]) -> list:
             }
         else:
             for drawing_type in file['drawing_types']:
-                print('type: ', drawing_type)
-                #if not drawing_types or not drawing_types[drawing_type]:
-                drawing_types.append(drawing_type)
+                if drawing_type not in drawing_types:
+                    drawing_types.append(drawing_type)
 
         for key in ['scale', 'room_names', 'cardinal_direction']:
             if file.get(key):
@@ -27,5 +26,7 @@ def json_response_converter(detection_response: List[Detection]) -> list:
             response.append({
                 file['file_name']: obj
             })
-    print(drawing_types)
+
+    for key in drawing_types:
+        response.append(key)
     return response
