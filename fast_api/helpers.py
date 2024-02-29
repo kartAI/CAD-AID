@@ -10,15 +10,12 @@ def easy_ocr_detection(image):
 	reader = easyocr.Reader(['no'])
 	results = reader.readtext(image)
 
-	bounding_boxes = []
 	decoded_labels = []
 
 	for result in results:
-		bounding_boxes.append(result[0])
 		decoded_labels.append(result[1])
 
 	print(decoded_labels)
-	print(bounding_boxes)
 	return decoded_labels
 
 
@@ -43,6 +40,10 @@ def check_detections(detections: []) -> Detection:
         drawing_type = d["name"]
         confidence = d["confidence"]
         validate = confidence_status(confidence)
+        print(drawing_type)
+        print(validate)
+        #if not detections_res[drawing_type]:
         detections_res[drawing_type] = validate
 
+    print(detections_res)
     return detections_res

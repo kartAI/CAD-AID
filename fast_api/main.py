@@ -1,15 +1,14 @@
 from fastapi.middleware.cors import CORSMiddleware
-import uvicorn
 import cv2
 import os
 from fastapi import FastAPI, UploadFile
 from ultralytics import YOLO
 from pathlib import Path
 from pdf2image import convert_from_path
-from helpers import check_detections, easy_ocr_detection
 from typing import Dict, List
-from models import Detection
-import regex
+from nora_detection import nora_detection
+from ada_detection import ada_detection
+
 app = FastAPI()
 
 origins = [
@@ -31,14 +30,9 @@ UPLOAD_DIRECTORY.mkdir(parents=True, exist_ok=True)
 
 @app.post("/detect/")
 async def detect_objects(uploaded_files: List[UploadFile]):
-    model_path = r"../runs/detect/Nora/train/weights/best.pt"
 
-    # os.path.exists(model_path)
-
-    model = YOLO(model_path)
-
-    response_json = {}
-
+    yolo_model = YOLO(r"../runs/detect/Nora/train/weights/best.pt")
+    response_json = []
     for uploaded_file in uploaded_files:
         # Process the uploaded image for object detection
         file_path = UPLOAD_DIRECTORY/uploaded_file.filename
@@ -52,54 +46,28 @@ async def detect_objects(uploaded_files: List[UploadFile]):
         if uploaded_file.filename.lower().endswith('.pdf'):
             input_images = convert_from_path(file_path)
             for image in input_images:
-                results = model.predict(image)
-                for r in results:
-                    detections = r.tojson()
-                    response_json = {
-                        **response_json,
-                        **check_detections(detections)
-                    }
-                include = False
-                ocr_results = easy_ocr_detection(image)
-                for ocr in ocr_results:
-                    pattern = r"\d+:\d+"
-                    if regex.match(pattern, ocr):
-                        include = True
-                if not include:
-                    response_json = {
-                        **response_json,
-                        uploaded_file.filename: {
-                            'scale': 'noo'
-                        }
-                    }
+
+                response_json = {
+                    **response_json,
+                    **nora_detection(image),
+                    'file_name': uploaded_file.filename
+                }
+                response_json = {
+                    **response_json,
+                    **ada_detection(image, response_json)
+                }
+
 
 
         # read file directly as an image from folder
         elif uploaded_file.filename.lower().endswith(('.jpg', '.jpeg', '.png')):
             image = cv2.imread(str(file_path))
-            results = model.predict(image)
-            for r in results:
-                detections = r.tojson()
-                response_json = {
-                    **response_json,
-                    **check_detections(detections)
-                }
-            include = False
-            ocr_results = easy_ocr_detection(image)
-            for ocr in ocr_results:
-                pattern = r"\d+:\d+"
-                if regex.match(pattern, ocr):
-                    include = True
-            if not include:
-                response_json = {
-                    **response_json,
-                    uploaded_file.filename: {
-                        'scale': 'noo'
-                    }
-                }
+            nora = nora_detection(image)
 
+            response_json.append({
+                **nora,
+                'file_name': uploaded_file.filename,
+                **ada_detection(image, nora)
+            })
+        os.remove(file_path)
     return response_json
-
-
-if __name__ == '__main__':
-    uvicorn.run(app, host='0.0.0.0', port=8000)
