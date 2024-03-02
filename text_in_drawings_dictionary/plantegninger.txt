@@ -1,7 +1,10 @@
 Sov
 Soverom
+Nytt soverom
+Nytt Sov
 Gang
 Bod
+Matbod
 Bad
 Kjøkken
 Trapp
@@ -13,3 +16,6 @@ Trinn
 Entre
 Trapperom
 Garasje
+Utvidet bad
+Stue og kjøkken
+Balkong
