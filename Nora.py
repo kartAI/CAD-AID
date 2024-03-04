@@ -31,6 +31,6 @@ def prediction(img_path):
 
 
 
-img= "data/test/images/Kalkveien_21_U_page_1.jpg"
+img= "data/test/images/Brunsbykollen9_plan_snitt_page_1.jpg"
 prediction(img)
 #train_model()
