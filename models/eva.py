@@ -5,30 +5,31 @@ from PIL import Image
 from ultralytics.utils.ops import scale_image
 import os
 import matplotlib.pyplot as plt
-
-def train_model(model):
-    model.train(data='data/data.yaml', classes=[5], epochs=10)
+import cv2
+from ultralytics import YOLO
+from ultralytics.utils.plotting import Annotator, colors
 
 
 def predict_seg (img, model):
-
-    results = model(img, save=False, stream=True)
-
-    return results
-
-# Resize mask if output from model lower resolution
-def resize_mask(results,img):
-    h, w, _ = img.shape
-    resized_masks = []
+    results = model(img, save=False, conf=0.4)
 
     for r in results:
 
         img_array = r.plot()
-        im = Image.fromarray(img_array[..., :: -1])  # RGB image
-        #im.show()
+        img = Image.fromarray(img_array[..., :: -1])  # RGB image
+        img.show()
 
-        masks = r.masks.data.numpy()
-        for mask in masks:
+    return results
+
+# ------- RESIZE MASKS ----------------------------
+# Resize mask if output from model lower resolution
+def resize_mask(img,seg_res):
+    h, w, _ = img.shape
+    resized_masks = []
+
+    for r in seg_res:
+        seg_masks = r.masks.data.numpy()
+        for mask in seg_masks:
             resized_mask = cv2.resize(mask, (w, h))
             resized_masks.append(resized_mask)
     return resized_masks
@@ -56,20 +57,36 @@ def plot_segmented_img(img_with_masks):
     cv2.waitKey(0)
     cv2.destroyAllWindows()
 
-# Draw contours around each mask.Might not be used in future
-def mask_contours(masks, image):
-    all_contours = []
-    for i, mask in enumerate(masks):
-        mask = mask.astype(np.uint8)
-        contours, _ = cv2.findContours(mask.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-        all_contours.extend(contours)
 
-    return all_contours
+# ------------ BARE LITT ROT :) ---------------------
+def plot_seg_with_tracking(img, model):
+    results = model.track(img, persist=True)
+    names = model.model.names
+    annonator = Annotator(img, line_width=3)
+    for r in results:
+        if r.masks is not None:
+            masks = r.masks.xy
 
-def plot_contoured_masks(image,contours):
-    for cnt in contours:
-        cv2.drawContours(image, [cnt], 0, (0, 255, 0), 2)  # Draw contours in green with thickness 2
-    cv2.imshow("contours", image)
+            track_ids = r.boxes.id.int().cpu().tolist()
+            clss = r.boxes.cls.data.numpy()
+
+            for mask, track_id, cls in zip(masks, track_ids, clss):
+                annonator.seg_bbox(mask=mask, mask_color=colors(track_id, True), det_label=names[int(cls)])
+    cv2.imshow("results", img)
+    cv2.waitKey(0)
+    cv2.destroyAllWindows()
+
+def plot_contoured_masks(img,model):
+    results = model(img, save=False)
+    names = model.model.names
+    annonator = Annotator(img, line_width=2)
+    for r in results:
+        if r.masks is not None:
+            clss = r.boxes.cls.data.numpy()
+            masks = r.masks.xy
+            for mask, cls in zip(masks, clss):
+                annonator.seg_bbox(mask=mask, mask_color=colors(int(cls), True), det_label=names[int(cls)])
+    cv2.imshow("results", img)
     cv2.waitKey(0)
     cv2.destroyAllWindows()
 
@@ -77,14 +94,16 @@ def plot_contoured_masks(image,contours):
 if __name__ == "__main__":
     model = YOLO("../runs/segment/train14/weights/best.pt")
 
-    img_path = "../data_seg_anylabeling/test/images/svart-hvit-2d-plantegning-med-mal.jpg"
+    img_path = "../data_seg/test/images/svart-hvit-2d-plantegning-med-mal.jpg"
     img = cv2.imread(img_path)
 
     # Get results from model
-    segmentation_results=predict_seg(img, model)
+    seg_results=predict_seg(img, model)
+
 
     # Resize masks if output img from model has low resolution
-    masks = resize_mask(segmentation_results,img)
+    #img_copy = img.copy()
+    #masks = resize_mask(img_copy,seg_results)
     # Combine resized mask with original image
-    masked_img = combine_img_masks(img, masks)
+    #masked_img = combine_img_masks(img_copy, masks)
     #plot_segmented_img(masked_img)

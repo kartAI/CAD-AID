@@ -30,8 +30,8 @@ def plot_detected_drawings(results):
         img.show()
 
 if __name__ == "__main__":
-    img_path = "../data/test/images/Brunsbykollen9_fasade_page_1.jpg"
+    img_path = "../data/test/images/Rådhusgata 45_foto.PNG"
 
-    model = YOLO("../runs/detect/Ada/train12/weights/best.pt")
+    model = YOLO("../runs/detect/nora/train/weights/best.pt")
     results = prediction_nora(img_path, model)
     plot_detected_drawings(results)

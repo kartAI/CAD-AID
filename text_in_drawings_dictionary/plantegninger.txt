@@ -2,7 +2,6 @@ Sov
 Soverom
 Nytt soverom
 Nytt Sov
-Gang
 Bod
 Matbod
 Bad

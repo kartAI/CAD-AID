@@ -31,7 +31,7 @@ UPLOAD_DIRECTORY.mkdir(parents=True, exist_ok=True)
 
 @app.post("/detect/")
 async def detect_objects(uploaded_files: List[UploadFile]):
-    model_path = r"../runs/detect/Nora/train2/weights/best.pt"
+    model_path = r"../runs/detect/nora/train2/weights/best.pt"
 
     # os.path.exists(model_path)
 

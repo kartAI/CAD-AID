@@ -89,11 +89,12 @@ def check_scales(decoded_text, target_words):
 	return similar_words
 
 if __name__ == "__main__":
-	image_path = '../data_seg/test/images/plantegning6_page_1.jpg'
+	image_path = '../data/test/images/Folkvordgeilen11_snitt_fasade_page_1.jpg'
 	image = cv2.imread(image_path)
 
 	# list of dictionaries containing text,bbox and prob
 	detected_text = easy_ocr_detection(image)
+	plot_text_bboxes(detected_text,image)
 
 	orientations = read_text_files("../text_in_drawings_dictionary/himmelretninger.txt")
 	scales = read_text_files("../text_in_drawings_dictionary/scale.txt")
