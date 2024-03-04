@@ -1,14 +1,13 @@
 from fastapi.middleware.cors import CORSMiddleware
-import uvicorn
 import cv2
 import os
 from fastapi import FastAPI, UploadFile
-from ultralytics import YOLO
 from pathlib import Path
 from pdf2image import convert_from_path
-from helpers import check_detections
-from typing import Dict, List
-from models import Detection
+from typing import List
+from nora_detection import nora_detection
+from ada_detection import ada_detection
+from json_response_converter import json_response_converter
 
 app = FastAPI()
 
@@ -31,16 +30,8 @@ UPLOAD_DIRECTORY.mkdir(parents=True, exist_ok=True)
 
 @app.post("/detect/")
 async def detect_objects(uploaded_files: List[UploadFile]):
-    model_path = r"../runs/detect/Nora/train2/weights/best.pt"
 
-    # os.path.exists(model_path)
-
-    model = YOLO(model_path)
-
-    print("Kommer inn: ", model.export)
-
-    response_json: Dict[str | None, Dict[str, Detection]] = {}
-
+    detection_response = []
     for uploaded_file in uploaded_files:
         # Process the uploaded image for object detection
         file_path = UPLOAD_DIRECTORY/uploaded_file.filename
@@ -54,27 +45,23 @@ async def detect_objects(uploaded_files: List[UploadFile]):
         if uploaded_file.filename.lower().endswith('.pdf'):
             input_images = convert_from_path(file_path)
             for image in input_images:
-                results = model.predict(image)
-                for r in results:
-                    detections = r.tojson()
-                    response_json = {
-                        **response_json,
-                        uploaded_file.filename: check_detections(detections)
-                    }
+                nora: list = nora_detection(image)
+
+                detection_response.append({
+                    'drawing_types': nora,
+                    'file_name': uploaded_file.filename,
+                    **ada_detection(image, nora)
+                })
 
         # read file directly as an image from folder
         elif uploaded_file.filename.lower().endswith(('.jpg', '.jpeg', '.png')):
             image = cv2.imread(str(file_path))
-            results = model.predict(image)
-            for r in results:
-                detections = r.tojson()
-                response_json = {
-                    **response_json,
-                    uploaded_file.filename: check_detections(detections)
-                }
+            nora: list = nora_detection(image)
 
-    return response_json
-
-
-if __name__ == '__main__':
-    uvicorn.run(app, host='0.0.0.0', port=8000)
+            detection_response.append({
+                'drawing_types': nora,
+                'file_name': uploaded_file.filename,
+                **ada_detection(image, nora)
+            })
+        os.remove(file_path)
+    return json_response_converter(detection_response)
