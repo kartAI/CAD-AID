@@ -6,6 +6,7 @@ Bod
 Matbod
 Bad
 Kjøkken
+Gang
 Trapp
 Stue
 Vask

@@ -37,7 +37,7 @@ def plot_text_bboxes(detected_text_list, image):
 		bottom_right = tuple(bbox[2])
 
 		# draw green rectangle (0,255,0) and thickness 2
-		cv2.rectangle(image, top_left, bottom_right, (0, 255, 0), 2)
+		cv2.rectangle(image, top_left, bottom_right, (0, 255, 0), 3)
 
 	# Display the image with bounding boxes
 	cv2.imshow('Detected Text', image)

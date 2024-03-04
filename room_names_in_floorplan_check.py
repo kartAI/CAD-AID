@@ -1,4 +1,4 @@
-from models.eva import predict_seg, combine_img_masks, plot_contoured_masks, resize_mask
+from models.eva import predict_seg, plot_seg_with_tracking
 from ultralytics import YOLO
 import cv2
 from models.easy_ocr import easy_ocr_detection, plot_text_bboxes,read_text_files, search_word
@@ -75,14 +75,15 @@ def plot_bboxes_roomname_missing(detected_text_list, yolo_results, image):
 if __name__ == "__main__":
     model_segment = YOLO("runs/segment/train14/weights/best.pt")
 
-    img_path = "data_seg/test/images/svart-hvit-2d-plantegning-med-mal.jpg"
+    img_path = "data_seg/test/images/plantegning6_page_1.jpg"
     img_path_no_roomlabels = "data_seg/test/images/hus-plantegning-svart-hvit.jpg"
-    img_path_missing_room = "data_seg/test/images/svart-hvit-plantegning_mangler_rom.jpg"
+    img_path_missing_room = "data_seg/test/images/plantegning6_page_1_manglerrom.jpg"
 
     img = cv2.imread(img_path_missing_room)
-
+    img_copy=img.copy()
     # get text and bboxes
     detected_text= easy_ocr_detection(img)
+
     # Get a list of all detected room names and coordinates
     room_names_path = "text_in_drawings_dictionary/plantegninger.txt"
     room_names = read_text_files(room_names_path)
@@ -92,15 +93,18 @@ if __name__ == "__main__":
     # predict segmentations and bboxes
     segmentation_results = predict_seg(img, model_segment)
 
+    # plot segmentations
+    results,blended_img= plot_seg_with_tracking(img, model_segment)
     # Check if bbox for text is inside room bboxes
-    check_text_inside_room(detected_rooms, segmentation_results)
+    check_text_inside_room(detected_rooms, results)
 
     # Plot detected text
-    #plot_text_bboxes(detected_rooms, img)
+    #plot_text_bboxes(detected_rooms, img_copy)
+
 
     # Plot rectangle for rooms with missing room name
-    img_copy = img.copy()
-    #plot_bboxes_roomname_missing(detected_rooms,segmentation_results,img_copy)
+
+    plot_bboxes_roomname_missing(detected_rooms,segmentation_results,img_copy)
 
 
 
