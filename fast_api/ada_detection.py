@@ -8,7 +8,7 @@ def ada_detection(image, file_types):
 
     # midlertidig if
     if 'fasade' in file_types or 'plantegning' in file_types:
-        reader = easyocr.Reader(['no'])
+        reader = easyocr.Reader(['no'], gpu=False)
         results = reader.readtext(image)
 
         decoded_labels = []
