@@ -7,6 +7,7 @@ Matbod
 Bad
 Kjøkken
 Gang
+Gang/Trapp
 Trapp
 Stue
 Vask

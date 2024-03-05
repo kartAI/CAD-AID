@@ -99,12 +99,12 @@ if __name__ == "__main__":
     check_text_inside_room(detected_rooms, results)
 
     # Plot detected text
-    #plot_text_bboxes(detected_rooms, img_copy)
+    plot_text_bboxes(detected_rooms, blended_img)
 
 
     # Plot rectangle for rooms with missing room name
 
-    plot_bboxes_roomname_missing(detected_rooms,segmentation_results,img_copy)
+    #plot_bboxes_roomname_missing(detected_rooms,segmentation_results,img_copy)
 
 
 
