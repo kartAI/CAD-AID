@@ -6,6 +6,7 @@ import numpy as np
 from PIL import Image
 
 
+
 # Check if detected room text is inside bounding box for each room
 def check_text_inside_room(detected_text_list,yolo_results):
     rooms_found = []
@@ -73,13 +74,13 @@ def plot_bboxes_roomname_missing(detected_text_list, yolo_results, image):
     cv2.destroyAllWindows()
 
 if __name__ == "__main__":
-    model_segment = YOLO("runs/segment/train14/weights/best.pt")
+    model_segment = YOLO("runs/segment/train15/weights/best.pt")
 
-    img_path = "data_seg/test/images/plantegning6_page_1.jpg"
+    img_path = "data_seg/test/images/Draugveien 173B_snitt_page_2.jpg"
     img_path_no_roomlabels = "data_seg/test/images/hus-plantegning-svart-hvit.jpg"
     img_path_missing_room = "data_seg/test/images/plantegning6_page_1_manglerrom.jpg"
 
-    img = cv2.imread(img_path_missing_room)
+    img = cv2.imread(img_path)
     img_copy=img.copy()
     # get text and bboxes
     detected_text= easy_ocr_detection(img)
@@ -89,22 +90,22 @@ if __name__ == "__main__":
     room_names = read_text_files(room_names_path)
 
     detected_rooms = search_word(detected_text, room_names)
+    #plot_text_bboxes(detected_rooms,img)
 
     # predict segmentations and bboxes
-    segmentation_results = predict_seg(img, model_segment)
+    #results_seg = predict_seg(img, model_segment)
 
     # plot segmentations
     results,blended_img= plot_seg_with_tracking(img, model_segment)
+
     # Check if bbox for text is inside room bboxes
-    check_text_inside_room(detected_rooms, results)
+    #check_text_inside_room(detected_rooms, results)
 
     # Plot detected text
     plot_text_bboxes(detected_rooms, blended_img)
 
-
     # Plot rectangle for rooms with missing room name
-
-    #plot_bboxes_roomname_missing(detected_rooms,segmentation_results,img_copy)
+    plot_bboxes_roomname_missing(detected_rooms,results,img_copy)
 
 
 

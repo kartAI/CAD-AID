@@ -89,7 +89,7 @@ def check_scales(decoded_text, target_words):
 	return similar_words
 
 if __name__ == "__main__":
-	image_path = '../data/test/images/Folkvordgeilen11_snitt_fasade_page_1.jpg'
+	image_path = '../data/train/images/fasade32.jpg'
 	image = cv2.imread(image_path)
 
 	# list of dictionaries containing text,bbox and prob

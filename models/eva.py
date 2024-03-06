@@ -17,14 +17,14 @@ def predict_seg (img, model):
 
         img_array = r.plot()
         img = Image.fromarray(img_array[..., :: -1])  # RGB image
-        #img.show()
+        img.show()
 
     return results
 
 
 # Pretty segmentations
 def plot_seg_with_tracking(img, model):
-    results = model.track(img, persist=False)
+    results = model.track(img, persist=False,conf=0.4)
 
     # Class names
     names = model.model.names
@@ -34,18 +34,23 @@ def plot_seg_with_tracking(img, model):
     # empty image array
     mask_img = np.zeros_like(img)
 
+
     for r in results:
         if r.masks is not None:
             # Nrmalize mask coordinates to fill polygons
             masks_norm = r.masks.xyn
+
             # Mask coordinates to use in annotator
             masks = r.masks.xy
+
+
             track_ids = r.boxes.id.int().cpu().tolist()
             clss = r.boxes.cls.tolist()
 
             for mask, track_id, cls in zip(masks_norm, track_ids, clss):
                 mask_color = colors(track_id,True)
                 polygon = np.array([[(x * img.shape[1], y * img.shape[0]) for x, y in mask]], dtype=np.int32)
+
                 # Fill the polygon in the mask_img
                 cv2.fillPoly(mask_img, polygon, mask_color)
 
@@ -86,7 +91,7 @@ def plot_contoured_masks(img,model):
 
 
 if __name__ == "__main__":
-    model = YOLO("../runs/segment/train14/weights/best.pt")
+    model = YOLO("../runs/segment/train15/weights/best.pt")
     #plot_results('../runs/segment', segment=True)
 
     img_path = "../data_seg/test/images/plantegning6_page_1.jpg"
@@ -95,7 +100,8 @@ if __name__ == "__main__":
     # Get results from model
     #seg_results=predict_seg(img, model)
     #plot_contoured_masks(img,model)
-    plot_seg_with_tracking(img, model)
+    results, blended_img= plot_seg_with_tracking(img, model)
+
 
     # Resize masks if output img from model has low resolution
     #img_copy = img.copy()

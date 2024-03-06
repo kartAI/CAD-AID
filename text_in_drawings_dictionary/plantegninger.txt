@@ -5,18 +5,20 @@ Nytt Sov
 Bod
 Matbod
 Bad
+Utvidet bad
 Kjøkken
+Stue
+TV-stue
+Stue/kjøkken
+Stue og kjøkken
 Gang
 Gang/Trapp
+Hall
+Entre
+Trinn
 Trapp
-Stue
+Trapperom
 Vask
 Kontor
-TV-stue
-Trinn
-Entre
-Trapperom
 Garasje
-Utvidet bad
-Stue og kjøkken
 Balkong
