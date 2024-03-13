@@ -6,7 +6,7 @@
 
 ## Installation
 
-To install the required dependencies, navigate to the root directory of the project and run:
+To install the required dependencies, navigate to the `fast_api` folder and run:
 
 ```bash
 pip install -r requirements.txt
