@@ -5,9 +5,9 @@ from fastapi import FastAPI, UploadFile
 from pathlib import Path
 from pdf2image import convert_from_path
 from typing import List
-from nora_detection import nora_detection
-from ada_detection import ada_detection
-from json_response_converter import json_response_converter
+from .nora_detection import nora_detection
+from .ada_detection import ada_detection
+from .json_response_converter import json_response_converter
 
 app = FastAPI()
 

@@ -1,5 +1,5 @@
 from typing import List
-from models import Detection
+from .models import Detection
 
 
 def json_response_converter(detection_response: List[Detection]) -> list:

@@ -1,6 +1,6 @@
 import easyocr
 import regex
-from regex_patterns import scale_pattern, cardinal_direction_pattern, room_pattern
+from .regex_patterns import scale_pattern, cardinal_direction_pattern, room_pattern
 
 
 def ada_detection(image, file_types):
@@ -9,7 +9,7 @@ def ada_detection(image, file_types):
     # midlertidig if
     if 'fasade' in file_types or 'plantegning' in file_types:
         reader = easyocr.Reader(['no'], gpu=False)
-        results = reader.readtext(image)
+        results = reader.readtext(image, width_ths=0.7)
 
         decoded_labels = []
 
@@ -25,7 +25,7 @@ def ada_detection(image, file_types):
                 'room_names': (room_pattern, 'Mangler romnavn')
             }
         }
-
+        
         for file_type in file_types:
             for drawing_type, sub_conditions in conditions.items():
                 if drawing_type == file_type:

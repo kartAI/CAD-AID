@@ -1,6 +1,3 @@
-from enum import Enum
-from pydantic import BaseModel
-
 
 class Detection:
     drawing_types: list | None
