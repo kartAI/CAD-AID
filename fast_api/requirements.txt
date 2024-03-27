@@ -1,0 +1,9 @@
+fastapi==0.109.0
+uvicorn[standard]==0.20.*
+opencv-python==4.9.0.80
+ultralytics==8.1.14
+easyocr==1.7.1
+pdf2image==1.17.0
+pathlib==1.0.1
+regex==2023.10.3
+python-multipart==0.0.9
