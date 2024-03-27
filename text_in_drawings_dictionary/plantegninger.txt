@@ -1,15 +1,24 @@
 Sov
 Soverom
-Gang
+Nytt soverom
+Nytt Sov
 Bod
+Matbod
 Bad
+Utvidet bad
 Kjøkken
-Trapp
 Stue
+TV-stue
+Stue/kjøkken
+Stue og kjøkken
+Gang
+Gang/Trapp
+Hall
+Entre
+Trinn
+Trapp
+Trapperom
 Vask
 Kontor
-TV-stue
-Trinn
-Entre
-Trapperom
 Garasje
+Balkong

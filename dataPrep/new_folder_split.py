@@ -7,19 +7,19 @@ base_dir = os.path.dirname(os.path.dirname(__file__))
 
 # Training data directories
 train_images_dir = os.path.join(base_dir, "data", "train", "images")
-train_labels_dir = os.path.join(base_dir, "data", "train", "labels")
+train_labels_dir = os.path.join(base_dir, "data", "train", "json_labels")
 
 # Testing data directories
 test_images_dir = os.path.join(base_dir, "data", "test", "images")
-test_labels_dir = os.path.join(base_dir, "data", "test", "labels")
+test_labels_dir = os.path.join(base_dir, "data", "test", "json_labels")
 
 # Validation data directories
 val_images_dir = os.path.join(base_dir, "data", "val", "images")
-val_labels_dir = os.path.join(base_dir, "data", "val", "labels")
+val_labels_dir = os.path.join(base_dir, "data", "val", "json_labels")
 
 # New data directories
 new_images_dir = os.path.join(base_dir, "images")
-new_labels_dir = os.path.join(base_dir, "labels")
+new_labels_dir = os.path.join(base_dir, "json_labels")
 
 def split_and_add_new_data(new_images_dir, new_labels_dir, train_ratio=0.8, test_ratio=0.1):
 
@@ -49,7 +49,7 @@ def split_and_add_new_data(new_images_dir, new_labels_dir, train_ratio=0.8, test
             else:
                 print("File not found:", src_img_path, "or", src_lbl_path)
 
-    # Split and move new images and labels
+    # Split and move new images and json_labels
     move_files(new_image_files[:train_split_idx], new_images_dir, new_labels_dir, train_images_dir, train_labels_dir)
     move_files(new_image_files[train_split_idx:test_split_idx], new_images_dir, new_labels_dir, test_images_dir, test_labels_dir)
     move_files(new_image_files[test_split_idx:], new_images_dir, new_labels_dir, val_images_dir, val_labels_dir)

@@ -3,5 +3,5 @@ train: train/images
 test: test/images
 val: val/images
 
-nc: 5
-names: ["fasade","plantegning","situasjonskart", "snitt", "tekst"]
+nc: 4
+names: ["fasade","plantegning","situasjonskart", "snitt"]

@@ -2,3 +2,12 @@ Nord
 Vest
 Øst
 Sør
+sørvest
+Fasade mot øst
+Fasade mot nord
+Fasade mot vest
+Fasade mot sør
+Fasade øst
+Fasade nord
+Fasade vest
+Fasade sør
