@@ -20,7 +20,7 @@ Make sure you are on the right path.
 cd fast_api
 ``` 
 
-Then, start the FastAPI server by running:
+Then, start the application loacly by running:
 
 ```bash
 uvicorn src.main:app --reload

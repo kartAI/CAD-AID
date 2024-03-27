@@ -13,7 +13,7 @@ def find_value(detection: {}, key: str) -> str | float | None:
 
 
 def nora_detection(image) -> list:
-    model = YOLO(r"../runs/detect/Nora/train/weights/best.pt")
+    model = YOLO(r"./models/Nora/best.pt")
 
     drawing_types = []
 

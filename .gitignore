@@ -2,6 +2,7 @@
 .DS_Store
 fast_api/static/uploads
 fast_api/__pycache__
+fast_api/src/__pycache__
 flask_app/.DS_Store
 flask_app/static/.DS_Store
 runs/DS_Store
