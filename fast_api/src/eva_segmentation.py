@@ -2,7 +2,6 @@ from ultralytics import YOLO
 import numpy as np
 import cv2
 from ultralytics.utils.plotting import Annotator, colors
-from Levenshtein import distance as levenshtein_distance
 import regex
 from .regex_patterns import scale_pattern, cardinal_direction_pattern, room_pattern
 from cv2.typing import MatLike
