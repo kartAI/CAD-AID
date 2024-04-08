@@ -7,6 +7,7 @@ from pdf2image import convert_from_path
 from typing import List
 from .nora_detection import nora_detection
 from .ada_detection import ada_detection
+from .eva_segmentation import eva_segmentation
 from .json_response_converter import json_response_converter
 
 app = FastAPI()
@@ -47,21 +48,33 @@ async def detect_objects(uploaded_files: List[UploadFile]):
             for image in input_images:
                 nora: list = nora_detection(image)
 
-                detection_response.append({
-                    'drawing_types': nora,
-                    'file_name': uploaded_file.filename,
-                    **ada_detection(image, nora)
-                })
-
-        # read file directly as an image from folder
-        elif uploaded_file.filename.lower().endswith(('.jpg', '.jpeg', '.png')):
-            image = cv2.imread(str(file_path))
-            nora: list = nora_detection(image)
+                if 'fasade' in nora or 'plantegning' in nora:
+                    ada, detected_text, detected_text_coordinates = ada_detection(image, nora)
+                    eva = eva_segmentation(image, detected_text, detected_text_coordinates)
 
             detection_response.append({
                 'drawing_types': nora,
                 'file_name': uploaded_file.filename,
-                **ada_detection(image, nora)
+                **ada,
+                **eva
             })
+
+        # read file directly as an image from folder
+        elif uploaded_file.filename.lower().endswith(('.jpg', '.jpeg', '.png')):
+            image = cv2.imread(str(file_path))
+
+            nora: list = nora_detection(image)
+
+            if 'fasade' in nora or 'plantegning' in nora:
+                ada, detected_text, detected_text_coordinates = ada_detection(image, nora)
+                eva = eva_segmentation(image, detected_text, detected_text_coordinates)
+
+            detection_response.append({
+                'drawing_types': nora,
+                'file_name': uploaded_file.filename,
+                **ada,
+                **eva
+            })
+
         os.remove(file_path)
     return json_response_converter(detection_response)
