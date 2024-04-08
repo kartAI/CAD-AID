@@ -1,5 +1,6 @@
 from ultralytics import YOLO
 import json
+from cv2.typing import MatLike
 
 
 def find_value(detection: {}, key: str) -> str | float | None:
@@ -12,7 +13,7 @@ def find_value(detection: {}, key: str) -> str | float | None:
     return None
 
 
-def nora_detection(image) -> list:
+def nora_detection(image: MatLike) -> list:
     model = YOLO(r"./models/Nora/best.pt")
 
     drawing_types = []

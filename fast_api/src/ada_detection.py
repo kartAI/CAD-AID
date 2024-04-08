@@ -1,18 +1,21 @@
 import easyocr
 import regex
 from .regex_patterns import scale_pattern, cardinal_direction_pattern, room_pattern
+from cv2.typing import MatLike
 
-
-def ada_detection(image, file_types):
+def ada_detection(image: MatLike, file_types):
     obj = {}
 
     reader = easyocr.Reader(['no'], gpu=False)
     results = reader.readtext(image, width_ths=0.7)
 
     decoded_labels = []
+    decoded_position = []
 
     for result in results:
-        decoded_labels.append(result[1])
+        bbox,text,prob = result
+        decoded_labels.append(text)
+        decoded_position.append(bbox)
 
     conditions = {
         'fasade': {
@@ -31,4 +34,4 @@ def ada_detection(image, file_types):
                     if not any(regex.search(pattern, ocr_label.lower()) for ocr_label in decoded_labels):
                         obj[condition] = message
 
-    return obj, decoded_labels
+    return obj, decoded_labels, decoded_position

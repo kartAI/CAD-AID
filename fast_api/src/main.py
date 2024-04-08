@@ -49,8 +49,8 @@ async def detect_objects(uploaded_files: List[UploadFile]):
                 nora: list = nora_detection(image)
 
                 if 'fasade' in nora or 'plantegning' in nora:
-                    ada, detected_text = ada_detection(image, nora)
-                    eva = eva_segmentation(image, detected_text)
+                    ada, detected_text, decoded_position = ada_detection(image, nora)
+                    eva = eva_segmentation(image, detected_text, decoded_position)
 
             detection_response.append({
                 'drawing_types': nora,
@@ -66,8 +66,8 @@ async def detect_objects(uploaded_files: List[UploadFile]):
             nora: list = nora_detection(image)
 
             if 'fasade' in nora or 'plantegning' in nora:
-                ada, detected_text = ada_detection(image, nora)
-                eva = eva_segmentation(image, detected_text)
+                ada, detected_text, decoded_position = ada_detection(image, nora)
+                eva = eva_segmentation(image, detected_text, decoded_position)
 
             detection_response.append({
                 'drawing_types': nora,
