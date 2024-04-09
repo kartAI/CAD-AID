@@ -48,23 +48,27 @@ async def detect_objects(uploaded_files: List[UploadFile]):
             for image in input_images:
                 nora: list = nora_detection(image)
 
+                ada = {}
+                eva = {}
+                
                 if 'fasade' in nora or 'plantegning' in nora:
                     ada, detected_text, detected_text_coordinates = ada_detection(image, nora)
                     eva = eva_segmentation(image, detected_text, detected_text_coordinates)
 
-            detection_response.append({
-                'drawing_types': nora,
-                'file_name': uploaded_file.filename,
-                **ada,
-                **eva
-            })
+                detection_response.append({
+                    'drawing_types': nora,
+                    'file_name': uploaded_file.filename,
+                    **ada,
+                    **eva
+                })
 
         # read file directly as an image from folder
         elif uploaded_file.filename.lower().endswith(('.jpg', '.jpeg', '.png')):
             image = cv2.imread(str(file_path))
 
             nora: list = nora_detection(image)
-
+            ada = {}
+            eva = {}
             if 'fasade' in nora or 'plantegning' in nora:
                 ada, detected_text, detected_text_coordinates = ada_detection(image, nora)
                 eva = eva_segmentation(image, detected_text, detected_text_coordinates)
