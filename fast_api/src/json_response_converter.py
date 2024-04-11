@@ -13,7 +13,7 @@ def json_response_converter(detection_response: List[Detection]) -> list:
         if not file['drawing_types']:
             obj = {
                 **obj,
-                'drawing_type': 'Er du sikker på at dette er riktig tegning?'
+                'drawing_type': 'Er du sikker på at dette er en byggesakstegning?'
             }
         else:
             for drawing_type in file['drawing_types']:
