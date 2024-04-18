@@ -2,6 +2,34 @@ from fastapi.testclient import TestClient
 
 from .main import app
 import os
+import pytest
+from urllib.request import Request, urlopen
+from urllib.error import HTTPError, URLError
+import json
+import os
+
+
+# The base URL of the FastAPI server
+BASE_URL = "http://127.0.0.1:8080"
+
+# The endpoint to test
+ENDPOINT = "/detect/"
+
+
+
+def make_request_to_documents():
+    """Make a request to the /documents/ endpoint."""
+    request = Request(f"{BASE_URL}{ENDPOINT}")
+    request.data()
+
+    try:
+        response = urlopen(request)
+        data = response.read().decode("utf-8")
+        return json.loads(data)
+    except HTTPError as e:
+        return e.code
+    except URLError as e:
+        return e.reason
 
 client = TestClient(app)
 
