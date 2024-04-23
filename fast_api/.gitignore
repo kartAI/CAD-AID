@@ -1,3 +1,5 @@
-src/__pycache__
+*__pycache__
 static/uploads
 .devcontainer
+*.pytest_cache
+*.log

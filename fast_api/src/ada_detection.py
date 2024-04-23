@@ -19,8 +19,8 @@ def ada_detection(image: MatLike, file_types):
 
     conditions = {
         'fasade': {
-            'scale': (scale_pattern, 'Mangler målestokk'),
-            'cardinal_direction': (cardinal_direction_pattern, 'Mangler himmelretning')
+            'scale': (scale_pattern, "Mangler målestokk"),
+            'cardinal_direction': (cardinal_direction_pattern, "Mangler himmelretning")
         },
         # 'plantegning': {
         #     'room_names': (room_pattern, 'Mangler romnavn')

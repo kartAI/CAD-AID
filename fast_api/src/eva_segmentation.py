@@ -31,7 +31,7 @@ def eva_segmentation(image: MatLike, detected_text, detected_text_coordinates):
                     break  # Found a text box inside the room, no need to check further
 
             if not found_text_in_room:
-                return {'room_names': 'Mangler rombenevnelse'}
+                return {'room_names': "Mangler rombenevnelse"}
             # for i in detected_index:
             #     print(detected_text[i])
             #     if not regex.search(room_pattern, detected_text[i]):
