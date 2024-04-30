@@ -9,6 +9,7 @@ from .nora_detection import nora_detection
 from .ada_detection import ada_detection
 from .eva_segmentation import eva_segmentation
 from .json_response_converter import json_response_converter
+from fastapi import HTTPException, status
 
 app = FastAPI()
 
@@ -31,6 +32,15 @@ UPLOAD_DIRECTORY.mkdir(parents=True, exist_ok=True)
 
 @app.post("/detect/")
 async def detect_objects(uploaded_files: List[UploadFile]):
+    FILE_SIZE = 26214400 # 25 * 1024 * 1024 = 25MB
+    real_file_size = 0
+
+    for file in uploaded_files:
+        for chunk in file.file:
+            real_file_size += len(chunk)
+            if real_file_size > FILE_SIZE:
+                raise HTTPException(status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, detail="Too large files")
+
 
     detection_response = []
     for uploaded_file in uploaded_files:
