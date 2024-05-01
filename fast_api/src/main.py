@@ -74,6 +74,7 @@ def process_file(uploaded_file):
 @app.post("/detect/")
 async def detect_objects(uploaded_files: List[UploadFile]):
 
+
     # FILE_SIZE = 26214400 # 25 * 1024 * 1024 = 25MB
     # real_file_size = 0
 
