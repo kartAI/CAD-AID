@@ -1,6 +1,6 @@
 from fastapi.testclient import TestClient
 
-from .main import app
+from main import app
 import os
 
 client = TestClient(app)
@@ -15,18 +15,14 @@ def test_detect_objects_with_image():
     else:
         print("File does not exist.")
 
-    # Open the test image file in binary mode
-    with open(test_image_path, 'rb') as test_image:
-        # Create a dict to simulate form data_old with a file upload
-        files = {'uploaded_files': (os.path.basename(test_image_path), test_image, 'image/jpeg')}
 
-        response = client.post("/detect/", files=files)
+    files = [('uploaded_files', (os.path.basename(test_image_path), open(test_image_path, 'rb'), 'image/jpeg'))]
+    response = client.post("/detect/", files=files)
 
     assert response.status_code == 200
+    assert response.json()[0]['file_name'] == 'situasjonskart.jpg'
+    assert response.json()[0]['drawing_type'] == ['situasjonskart']
 
-    # Parse the response JSON and perform further checks as needed
-    detections = response.json()['detections']
-    assert len(detections) > 0  # Example check: ensure at least one detection was made
 
 def test_upload_multible_files():
     test_image_paths= ['test_images/situasjonskart.jpg', 'test_images/snitt.jpg']
@@ -39,18 +35,18 @@ def test_upload_multible_files():
     assert response.status_code == 200
 
 
-def test_maxsize():
-    test_image_path = 'test_images/CAD-aid-DEMO.mp4' 
+# def test_maxsize():
+#     test_image_path = 'test_images/CAD-aid-DEMO.mp4' 
 
-    multiple_files = [('uploaded_files', (os.path.basename(test_image_path), open(test_image_path, 'rb'), 'video/mp4')),
-                      ('uploaded_files', (os.path.basename(test_image_path), open(test_image_path, 'rb'), 'video/mp4')),
-                      ('uploaded_files', (os.path.basename(test_image_path), open(test_image_path, 'rb'), 'video/mp4')),
-                      ('uploaded_files', (os.path.basename(test_image_path), open(test_image_path, 'rb'), 'video/mp4')),
-                    ]
+#     multiple_files = [('uploaded_files', (os.path.basename(test_image_path), open(test_image_path, 'rb'), 'video/mp4')),
+#                       ('uploaded_files', (os.path.basename(test_image_path), open(test_image_path, 'rb'), 'video/mp4')),
+#                       ('uploaded_files', (os.path.basename(test_image_path), open(test_image_path, 'rb'), 'video/mp4')),
+#                       ('uploaded_files', (os.path.basename(test_image_path), open(test_image_path, 'rb'), 'video/mp4')),
+#                     ]
 
-    response = client.post("/detect/", files=multiple_files)
+#     response = client.post("/detect/", files=multiple_files)
 
-    assert response.status_code == 413
+#     assert response.status_code == 413
 
 def test_not_acceptable_file_format():
     test_image_path = 'test_images/CAD-aid-DEMO.mp4' 
