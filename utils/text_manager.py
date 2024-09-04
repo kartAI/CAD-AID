@@ -1,5 +1,6 @@
 import sys
 import os
+import logging
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
 
@@ -24,6 +25,22 @@ class OCR:
 		self.image_path = self._config.PREDICTION_IMAGE_PATH
 		self.image = cv2.imread(self.image_path)
 		self.detected_text: List[TextInfo] = self.easy_ocr_detection()
+  
+	def preprocess_image(self, image):
+		# Convert to grayscale
+		gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+  
+		# Apply adaptive thresholding
+		processed = cv2.adaptiveThreshold(
+			gray,
+			255,
+			cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
+			cv2.THRESH_BINARY,
+			11,
+			2
+		)
+  
+		return processed
 		
 
 	def easy_ocr_detection(self) -> List[TextInfo]:
@@ -49,7 +66,10 @@ class TextDetection(OCR):
 		self.plotter = TextPlotter(self)
 
 	def get_target_text(self,patterns: List[str])-> List[TextInfo]:
-		
+		# Log all detected text before applying regex
+		logging.info(f"All detected text from OCR: {[text.text for text in self.detected_text]}")
+  
+  
 		for text_info in self.detected_text:
 			text = text_info.text
 			bbox = text_info.bbox

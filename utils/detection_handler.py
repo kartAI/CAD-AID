@@ -4,7 +4,7 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
 from typing import List
 from shapely.geometry import Point, Polygon
-from fast_api.regex_patterns import scale_pattern, cardinal_direction_pattern, room_pattern
+from fast_api.src.regex_patterns import scale_pattern, cardinal_direction_pattern, room_pattern
 from utils.text_manager import TextDetection
 from utils.models_manager import ObjectDetection
 from utils.models_manager import Segmentation
@@ -129,13 +129,16 @@ class DetectionHandler:
     def __init__(self):
         self.logger = cadaid_logger(__name__)
         self.detection = Detection()
+        self.object_detection = ObjectDetectionHandler(ObjectDetection())
+        self.segmentation_handler = SegmentationHandler(Segmentation())
 
     
     def check_and_execute(self):
         self.logger.info("Starting object detection...")
-        object_detection = ObjectDetectionHandler(ObjectDetection())
-
-        self.detection.drawing_type = object_detection.get_detection()
+        self.detection.drawing_type = self.object_detection.get_detection()
+        # object_detection = ObjectDetectionHandler(ObjectDetection())
+        
+        # self.detection.drawing_type = object_detection.get_detection()
     
        
         if not self.detection.drawing_type:
@@ -168,11 +171,11 @@ class DetectionHandler:
                 self.logger.debug(f"Found room names: {self.detection.room_names}")
 
                 
-                segmentation = SegmentationHandler(Segmentation())
+                #segmentation = SegmentationHandler(Segmentation())
                 self.logger.info("Performing segmentation...")
-                segmentation.find_text_segments(room_text_infos)
+                self.segmentation_handler.find_text_segments(room_text_infos)
 
-                true_count, false_count = segmentation.count_rooms()
+                true_count, false_count = self.segmentation_handler.count_rooms()
                 self.logger.info(f"Number of rooms with room label: {true_count}")
                 self.logger.info(f"Number of rooms without room label: {false_count}")
 
