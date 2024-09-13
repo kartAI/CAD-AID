@@ -1,7 +1,11 @@
 from fastapi import FastAPI, File, UploadFile, HTTPException
 from utils.detection_handler import DetectionHandler
+from dotenv import load_dotenv
 import os
 import shutil
+
+# Load environment variables
+load_dotenv(".env.dev")
 
 app = FastAPI()
 

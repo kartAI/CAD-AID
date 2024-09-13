@@ -6,3 +6,7 @@ ultralytics
 easyocr
 shapely
 python-dotenv
+uvicorn
+fastapi
+python-multipart
+dill
