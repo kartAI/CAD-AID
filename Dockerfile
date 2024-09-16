@@ -1,7 +1,6 @@
-# Slim version to reduce the image size
-FROM python:3.9-slim 
+FROM python:3.9-slim
 
-# Set environment variables
+# Set environment variables to prevent Python from writing pyc files
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 
@@ -16,24 +15,24 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libglib2.0-0 \
     && rm -rf /var/lib/apt/lists/*
 
-# Set the working directory
+# Set working directory
 WORKDIR /app
 
-# Copy .env.dev file into the Docker image
-COPY .env.dev /app/.env.dev
+# Create logs directory
+RUN mkdir -p /app/logs
 
 # Install Python dependencies
 COPY requirements.txt .
 RUN pip install --upgrade pip && \
-    pip install --no-cache-dir -r requirements.txt && \
-    pip install --no-cache-dir uvicorn python-dotenv
+    pip install --no-cache-dir -r requirements.txt
 
+# Copy only the necessary application files
+COPY api.py /app/api.py
+COPY utils /app/utils
+COPY models /app/models
 
-# Copy the current directory contents into the container at /app
-COPY . /app
-
-# Expose port for API
+# Expose port for the API
 EXPOSE 8000
 
-# Command to run the FastAPI app with Uvicorn
+# Command to run the application with uvicorn
 CMD ["uvicorn", "api:app", "--host", "0.0.0.0", "--port", "8000"]

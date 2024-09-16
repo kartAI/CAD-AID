@@ -4,7 +4,7 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
 from typing import List
 from shapely.geometry import Point, Polygon
-from fast_api.src.regex_patterns import scale_pattern, cardinal_direction_pattern, room_pattern
+from utils.regex_patterns import scale_pattern, cardinal_direction_pattern, room_pattern
 from utils.text_manager import TextDetection
 from utils.models_manager import ObjectDetection
 from utils.models_manager import Segmentation

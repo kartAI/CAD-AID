@@ -1,34 +1,53 @@
-from azure.identity import DefaultAzureCredential
-from azure.ai.ml.entities import Model
+from azureml.core import Workspace, Model
+from azureml.core.authentication import AzureCliAuthentication
+from dotenv import load_dotenv, find_dotenv
 import os
-from dotenv import load_dotenv
-from workspace import ml_client
 
+# Print current working directory for debugging
+print("Current working directory:", os.getcwd())
 
 # Load environment variables
-env_path = os.path.join(os.path.dirname(__file__), '..', '.env.dev')
-print(f"Loading environment from: {env_path}")  # Debugging line
-load_dotenv(env_path)
+dotenv_path = find_dotenv("../.env.dev")
+print("Dotenv path found:", dotenv_path)
+load_dotenv(dotenv_path)
 
-# Reuse ml_client directly
-try:
-    print(f"MLClient details: Subscription ID: {ml_client.subscription_id}, Resource Group: {ml_client.resource_group_name}, Workspace Name: {ml_client.workspace_name}")
-    print("Successfully reused MLClient.")
-except Exception as e:
-    print(f"Failed to reuse MLClient: {e}")
-    exit(1)
+# Get workspace details
+subscription_id = os.getenv("AZURE_SUBSCRIPTION_ID")
+resource_group = os.getenv("AZURE_RESOURCE_GROUP")
+workspace_name = os.getenv("AZUREML_WORKSPACE_NAME")
 
-# Register Docker image as a model
-try:
-    model = Model(
-        name=os.getenv("MODEL_NAME"),
-        version=os.getenv("MODEL_VERSION"),
-        type="custom_model",
-        path=f"azureml://registries/{os.getenv('ACR_NAME')}/repositories/cadaidbackend/latest"
-    )
+# Print workspace details
+print(f"Subscription ID: {subscription_id}")
+print(f"Resource Group: {resource_group}")
+print(f"Workspace Name: {workspace_name}")
 
-    # Register model in Azure ML
-    registered_model = ml_client.models.create_or_update(model)
-    print(f"Model {model.name} registered with version {model.version}.")
-except Exception as e:
-    print(f"An error occurred while registering the model: {e}")
+auth = AzureCliAuthentication()
+
+# Connect to workspace
+ws = Workspace(subscription_id, resource_group, workspace_name, auth)
+
+# Get absolute path of the model directory
+model_dir = os.path.abspath("./models_to_register/detection_model/")
+seg_model_dir = os.path.abspath("./models_to_register/segmentation_model/")
+
+# Register detection model
+detection_model = Model.register(
+    workspace=ws,
+    model_path=model_dir,
+    model_name="detection_model",
+    tags={'area': 'detection'},
+    description="YOLO detection model"
+)
+
+print(f"Detection model registered: {detection_model.name}, version {detection_model.version}")
+
+# Register segmentation model
+segmentation_model = Model.register(
+    workspace=ws,
+    model_path=seg_model_dir,
+    model_name="segmentation_model",
+    tags={'area': 'segmentation'},
+    description="YOLO segmentation model"
+)
+
+print(f"Segmentation model registered: {segmentation_model.name}, version {segmentation_model.version}")

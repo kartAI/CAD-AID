@@ -1,6 +1,6 @@
 import easyocr
 import regex
-from .regex_patterns import scale_pattern, cardinal_direction_pattern, room_pattern
+from ...utils.regex_patterns import scale_pattern, cardinal_direction_pattern, room_pattern
 from cv2.typing import MatLike
 
 def ada_detection(image: MatLike, file_types):

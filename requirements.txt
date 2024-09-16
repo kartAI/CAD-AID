@@ -1,12 +1,14 @@
-numpy
 opencv-python
 pdf2image
 Pillow
 ultralytics
+flask
 easyocr
+numpy
 shapely
-python-dotenv
-uvicorn
 fastapi
+uvicorn
 python-multipart
 dill
+azureml-core
+python-dotenv
