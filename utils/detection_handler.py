@@ -131,6 +131,7 @@ class DetectionHandler:
         self.detection = Detection()
         self.object_detection = ObjectDetectionHandler(ObjectDetection())
         self.segmentation_handler = SegmentationHandler(Segmentation())
+        self.segmentation_results = None
 
     
     def check_and_execute(self):
@@ -173,7 +174,7 @@ class DetectionHandler:
                 
                 #segmentation = SegmentationHandler(Segmentation())
                 self.logger.info("Performing segmentation...")
-                self.segmentation_handler.find_text_segments(room_text_infos)
+                self.segmentation_results = self.segmentation_handler.find_text_segments(room_text_infos)
 
                 true_count, false_count = self.segmentation_handler.count_rooms()
                 self.logger.info(f"Number of rooms with room label: {true_count}")
@@ -182,6 +183,10 @@ class DetectionHandler:
 
         
                 self.logger.info("Segmentation completed.")
+
+    
+    def get_segmentation_results(self):
+        return self.segmentation_results
 
 
             

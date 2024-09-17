@@ -1,10 +1,12 @@
 from fastapi import FastAPI, File, UploadFile, HTTPException
+from contextlib import asynccontextmanager
 from utils.detection_handler import DetectionHandler, SegmentationHandler
 from utils.models_manager import Segmentation
+from utils.text_manager import TextDetection  # Correctly import from text_manager
+from utils.regex_patterns import room_pattern
 from dotenv import load_dotenv
 import os
 import shutil
-import uuid
 import logging
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -28,50 +30,38 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Initialize the detection handler
-logger.info("Initializing detection handler")
-detection_handler = DetectionHandler()
-
-def download_models():
+# Define the lifespan function
+@asynccontextmanager
+async def lifespan(app: FastAPI):
     try:
-        # Example logic for downloading models without Azure authentication
-        # Assume models are stored in a public location or an accessible path within the container
-        logger.info(f"Downloading detection and segmentation models")
-
-        detection_model_path = "models/detection_model"
-        segmentation_model_path = "models/segmentation_model"
-
-        # Implement logic to download or copy models from a public or accessible location
-        # Example: Use wget, curl, or copy from a mounted volume
-
-        logger.info(f"Models downloaded to: {detection_model_path}, {segmentation_model_path}")
-        return detection_model_path, segmentation_model_path
-
-    except Exception as e:
-        logger.error(f"Error downloading models: {str(e)}")
-        raise HTTPException(status_code=500, detail="Failed to download models.")
-
-@app.on_event("startup")
-def startup_event():
-    try:
-        # Download both models at startup
-        logger.info("Downloading models at startup")
-        detection_model_path, segmentation_model_path = download_models()
-
-        # Initialize the detection handler
         global detection_handler
         logger.info("Initializing detection handler")
         detection_handler = DetectionHandler()
 
-        # Initialize the segmentation handler
         global segmentation_handler
         logger.info("Initializing segmentation handler")
         segmentation_model = Segmentation()
-        segmentation_handler = SegmentationHandler(model=segmentation_model)
+        segmentation_handler = SegmentationHandler(segmentation_model)
+
+        yield
+
     except Exception as e:
         logger.error(f"Error during startup: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Error during startup: {str(e)}")
+    
+    finally:
+        logger.info("Shutting down detection handler")
+        pass
 
+# Re-instantiate the FastAPI app with the lifespan function
+app = FastAPI(lifespan=lifespan)
+
+# Health check endpoint
+@app.get("/health/")
+async def health_check():
+    return {"status": "ok"}
+
+# Detect endpoint for handling object detection
 @app.post("/detect/")
 async def detect(file: UploadFile = File(...)):
     try:
@@ -95,6 +85,7 @@ async def detect(file: UploadFile = File(...)):
         logger.error(f"Error during detection: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
+# Segment endpoint for handling segmentation
 @app.post("/segment/")
 async def segment(file: UploadFile = File(...)):
     try:
@@ -104,20 +95,30 @@ async def segment(file: UploadFile = File(...)):
         with open(file_location, "wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
         logger.info(f"Uploaded file saved to {file_location}")
-            
+        
         # Update the prediction image path in the environment variable
         os.environ["PREDICTION_IMAGE_PATH"] = file_location
+
+        # Perform segmentation
+        logger.info("Performing segmentation...")
+        text_detector = TextDetection()
+        room_text_infos = text_detector.get_target_text([room_pattern])
         
-        # Initialize the segmentation handler
-        logger.info("Initializing segmentation handler")
-        segmentation_handler = detection_handler.segmentation_handler
-        
-        room_text_infos = segmentation_handler.find_text_segments([])
+        # Find text segments in the detected rooms
+        segmentation_handler.find_text_segments(room_text_infos)
         true_count, false_count = segmentation_handler.count_rooms()
-        
+
+        logger.info(f"Number of rooms with room label: {true_count}")
+        logger.info(f"Number of rooms without room label: {false_count}")
+
         # Return segmentation results
-        return {"filename": file.filename, "segmentation": "Segmentation completed successfully.", "rooms_with_labels": true_count, "rooms_without_labels": false_count}
-    
+        return {
+            "filename": file.filename,
+            "segmentation": "Segmentation completed successfully.",
+            "rooms_with_labels": true_count,
+            "rooms_without_labels": false_count,
+        }
+
     except Exception as e:
         logger.error(f"Error during segmentation: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))

@@ -21,7 +21,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 WORKDIR /app
 
 # Create logs directory
-RUN mkdir -p /app/logs
+RUN mkdir -p /app/logs /app/temp_files
 
 # Install Python dependencies
 COPY requirements.txt .
@@ -37,7 +37,7 @@ COPY data /app/data
 COPY data_seg /app/data_seg
 
 # Expose port for the API
-EXPOSE 8000
+EXPOSE 80
 
 # Command to run the application with uvicorn
-CMD ["uvicorn", "api:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "api:app", "--host", "0.0.0.0", "--port", "80", "--log-level", "debug"]

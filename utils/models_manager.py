@@ -56,7 +56,6 @@ class ModelsManager:
 class ObjectDetection(ModelsManager):
     def __init__(self):
         self._config = Config()
-        print(f"Object detection model path: {self._config.OBJECT_DETECTION_MODEL_PATH}")
         super().__init__(
                          model_path=self._config.OBJECT_DETECTION_MODEL_PATH,
                          model_conf=self._config.OBJECT_DETECTION_CONFIDENCE,
@@ -66,7 +65,6 @@ class ObjectDetection(ModelsManager):
 class Segmentation(ModelsManager):
     def __init__(self):
         self._config = Config()
-        print(f"Segmentation model path: {self._config.SEGMENTATION_MODEL_PATH}")
         super().__init__(
                          model_path=self._config.SEGMENTATION_MODEL_PATH,
                          model_conf=self._config.SEGMENTATION_CONFIDENCE,
