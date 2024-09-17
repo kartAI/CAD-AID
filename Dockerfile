@@ -13,6 +13,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     wget \
     libgl1-mesa-glx \
     libglib2.0-0 \
+    curl \
+    gnupg \
     && rm -rf /var/lib/apt/lists/*
 
 # Set working directory
@@ -30,6 +32,9 @@ RUN pip install --upgrade pip && \
 COPY api.py /app/api.py
 COPY utils /app/utils
 COPY models /app/models
+COPY .env.dev /app/.env.dev
+COPY data /app/data
+COPY data_seg /app/data_seg
 
 # Expose port for the API
 EXPOSE 8000
