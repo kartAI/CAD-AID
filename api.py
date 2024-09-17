@@ -65,15 +65,15 @@ async def health_check():
 @app.post("/detect/")
 async def detect(file: UploadFile = File(...)):
     try:
-        # Save uploaded file to disk
+        # Save uploaded file to a temporary location
         file_location = f"temp_files/{file.filename}"
         os.makedirs(os.path.dirname(file_location), exist_ok=True)
         with open(file_location, "wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
         logger.info(f"Uploaded file saved to {file_location}")
-            
-        # Update the prediction image path in the environment variable
-        os.environ["PREDICTION_IMAGE_PATH"] = file_location
+        
+        # Update the prediction image path for detection handler
+        detection_handler.model.prediction_image = file_location
         
         # Run detection
         logger.info("Running detection")
@@ -85,23 +85,25 @@ async def detect(file: UploadFile = File(...)):
         logger.error(f"Error during detection: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
+
 # Segment endpoint for handling segmentation
 @app.post("/segment/")
 async def segment(file: UploadFile = File(...)):
     try:
-        # Save uploaded file to disk
+        # Save uploaded file to a temporary location
         file_location = f"temp_files/{file.filename}"
         os.makedirs(os.path.dirname(file_location), exist_ok=True)
         with open(file_location, "wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
         logger.info(f"Uploaded file saved to {file_location}")
-        
-        # Update the prediction image path in the environment variable
-        os.environ["PREDICTION_IMAGE_PATH"] = file_location
+
+        # Update the prediction image path for segmentation handler
+        segmentation_handler.model.prediction_image = file_location
 
         # Perform segmentation
         logger.info("Performing segmentation...")
         text_detector = TextDetection()
+        text_detector.image_path = file_location  # Use the uploaded file
         room_text_infos = text_detector.get_target_text([room_pattern])
         
         # Find text segments in the detected rooms
