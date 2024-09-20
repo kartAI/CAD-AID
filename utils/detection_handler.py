@@ -77,9 +77,16 @@ class SegmentationHandler:
         self.seg_results = None
         self.rooms_found = []
         self.logger = cadaid_logger(__name__)
+        self.prediction_image = None
+        
+    def set_prediction_image(self, image_path):
+        self.prediction_image = image_path
 
-    def run_segmentation(self, image_path):
-        # Run segmentation on the given image
+    def run_segmentation(self, image_path=None):
+        if image_path is None:
+            image_path = self.prediction_image
+        if image_path is None:
+            raise ValueError("No image path provided for segmentation.")
         self.seg_results = list(self.model.predictions(image_path))  # Konverter til liste
 
     def find_text_segments(self, target_words: List[TextInfo]) -> List[PolygonInfo]:

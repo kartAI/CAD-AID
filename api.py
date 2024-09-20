@@ -79,12 +79,12 @@ async def process_file(file: UploadFile, is_detection: bool, visualize: bool, ha
                 result["visualization"] = handler.visualize_detection(file_location)
         else:
             handler.set_prediction_image(file_location)
-            handler.segmentation_handler.run_segmentation(file_location)
+            handler.run_segmentation(file_location)
             text_detector = TextDetection()
             text_detector.image_path = file_location
             room_text_infos = text_detector.get_target_text([room_pattern])
-            handler.segmentation_handler.find_text_segments(room_text_infos)
-            true_count, false_count = handler.segmentation_handler.count_rooms()
+            handler.find_text_segments(room_text_infos)
+            true_count, false_count = handler.count_rooms()
             result = {
                 "filename": file.filename,
                 "segmentation": "Segmentation completed successfully.",
@@ -92,7 +92,7 @@ async def process_file(file: UploadFile, is_detection: bool, visualize: bool, ha
                 "rooms_without_labels": false_count,
             }
             if visualize:
-                result["visualization"] = handler.segmentation_handler.visualize_segmentation(file_location)
+                result["visualization"] = handler.visualize_segmentation(file_location)
 
         os.remove(file_location)
         logger.info(f"Temporary file {file_location} removed")
