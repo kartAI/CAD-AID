@@ -62,6 +62,13 @@ class ObjectDetection(ModelsManager):
                          data_yaml=self._config.OBJECT_DETECTION_YAML
                         )
 
+    def predictions(self, image_path):
+        return self.model(image_path,
+                          save=False, 
+                          stream=True, 
+                          visualize=False, 
+                          conf=self.model_conf)
+    
 class Segmentation(ModelsManager):
     def __init__(self):
         self._config = Config()
@@ -70,7 +77,14 @@ class Segmentation(ModelsManager):
                          model_conf=self._config.SEGMENTATION_CONFIDENCE,
                          data_yaml=self._config.SEGMENTATION_YAML
                          )
-        
-    def plot_pretty_segments(self):
-        self.plotter.plot_pretty_segments(self.model,self.model_conf)
     
+    def predictions(self, image_path):
+        return self.model(image_path,
+                          save=False, 
+                          stream=True, 
+                          visualize=False, 
+                          conf=self.model_conf)
+
+    def plot_pretty_segments(self, image_path):
+        self.plotter.plot_pretty_segments(self.model, self.model_conf, image_path)
+

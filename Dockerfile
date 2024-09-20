@@ -29,12 +29,7 @@ RUN pip install --upgrade pip && \
     pip install --no-cache-dir -r requirements.txt
 
 # Copy only the necessary application files
-COPY api.py /app/api.py
-COPY utils /app/utils
-COPY models /app/models
-COPY .env.dev /app/.env.dev
-COPY data /app/data
-COPY data_seg /app/data_seg
+COPY . /app
 
 # Expose port for the API
 EXPOSE 80
