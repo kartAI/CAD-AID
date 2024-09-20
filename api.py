@@ -1,19 +1,19 @@
-from fastapi import FastAPI, File, UploadFile, HTTPException
-from contextlib import asynccontextmanager
+from fastapi import FastAPI, File, UploadFile, HTTPException, Depends
 from utils.detection_handler import DetectionHandler, SegmentationHandler
-from utils.models_manager import Segmentation
-from utils.text_manager import TextDetection  # Correctly import from text_manager
+from utils.models_manager import ObjectDetection, Segmentation
+from utils.text_manager import TextDetection
 from utils.regex_patterns import room_pattern
 from dotenv import load_dotenv
 import os
-import shutil
-import logging
 from fastapi.middleware.cors import CORSMiddleware
+from utils.logger import cadaid_logger
+from typing import List
+from concurrent.futures import ThreadPoolExecutor
+import yaml
+import asyncio
 
 # Set up logging
-logging.basicConfig(level=logging.DEBUG, filename='/app/logs/app.log', filemode='a',
-                    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-logger = logging.getLogger(__name__)
+logger = cadaid_logger(__name__)
 
 # Load environment variables
 logger.info("Loading environment variables from .env.dev")
@@ -30,113 +30,108 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Define the lifespan function
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    try:
-        global detection_handler
-        logger.info("Initializing detection handler")
-        detection_handler = DetectionHandler()
-
-        global segmentation_handler
-        logger.info("Initializing segmentation handler")
-        segmentation_model = Segmentation()
-        segmentation_handler = SegmentationHandler(segmentation_model)
-
-        yield
-
-    except Exception as e:
-        logger.error(f"Error during startup: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Error during startup: {str(e)}")
     
-    finally:
-        logger.info("Shutting down detection handler")
-        pass
+# Define dependency injection for handlers
+def get_detection_handler():
+    return DetectionHandler()
 
-# Re-instantiate the FastAPI app with the lifespan function
-app = FastAPI(lifespan=lifespan)
+def get_segmentation_handler():
+    return SegmentationHandler()
 
-# Health check endpoint
+# Health check endpoint - can be improved
 @app.get("/health/")
 async def health_check():
     return {"status": "ok"}
 
-# Detect endpoint for handling object detection
-@app.post("/detect/")
-async def detect(file: UploadFile = File(...)):
+async def process_file(file: UploadFile, is_detection: bool, visualize: bool, handler):
     try:
-        logger.info(f"Received request for detection: {file.filename}")
-        # Save uploaded file to a temporary location
+        logger.info(f"Processing file: {file.filename}")
         file_location = f"temp_files/{file.filename}"
         os.makedirs(os.path.dirname(file_location), exist_ok=True)
         with open(file_location, "wb") as buffer:
-            shutil.copyfileobj(file.file, buffer)
-        logger.info(f"Uploaded file saved to {file_location}")
-        
-        # Update the prediction image path for detection handler
-        detection_handler.set_prediction_image(file_location)
-        
-        # Run detection
-        logger.info("Running detection")
-        detection_handler.check_and_execute()
-        
-        # Return results
-        logger.info(f"Detection completed for file: {file.filename}")
-        return {"filename": file.filename, "detection": "Detection completed successfully."}
-    except Exception as e:
-        logger.error(f"Error during detection for file {file.filename}: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-# Segment endpoint for handling segmentation
-@app.post("/segment/")
-async def segment(file: UploadFile = File(...)):
-    try:
-        logger.info(f"Received request for segmentation: {file.filename}")
-        # Save uploaded file to a temporary location
-        file_location = f"temp_files/{file.filename}"
-        os.makedirs(os.path.dirname(file_location), exist_ok=True)
-        with open(file_location, "wb") as buffer:
-            shutil.copyfileobj(file.file, buffer)
+            content = await file.read()
+            buffer.write(content)
         logger.info(f"Uploaded file saved to {file_location}")
 
-        # Perform segmentation
-        logger.info("Performing segmentation...")
-        segmentation_handler.run_segmentation(file_location)
-        
-        text_detector = TextDetection()
-        text_detector.image_path = file_location  # Use the uploaded file
-        room_text_infos = text_detector.get_target_text([room_pattern])
-        logger.info(f"Text detection completed. Found {len(room_text_infos)} potential room texts.")
-        
-        # Find text segments in the detected rooms
-        segmentation_handler.find_text_segments(room_text_infos)
-        true_count, false_count = segmentation_handler.count_rooms()
+        if is_detection:
+            handler.set_prediction_image(file_location)
+            handler.check_and_execute()
+            
+            # Get the classes from data.yaml
+            with open("models_to_register/detection_model/data.yaml", "r") as f:
+                data = yaml.safe_load(f)
+                valid_classes = set(data["names"])
 
-        logger.info(f"Number of rooms with room label: {true_count}")
-        logger.info(f"Number of rooms without room label: {false_count}")
+            detected_classes = set(handler.detection.drawing_type)
+            matched_classes = detected_classes.intersection(valid_classes)
+            unmatched_classes = detected_classes - valid_classes
 
-        # Add logging before returning results
-        logger.info(f"Segmentation completed for file: {file.filename}")
-        if true_count == 0 and false_count == 0:
-            logger.warning(f"No rooms were detected in file: {file.filename}")
-            return {
+            result = {
                 "filename": file.filename,
-                "segmentation": "Segmentation completed, but no rooms were detected.",
-                "rooms_with_labels": 0,
-                "rooms_without_labels": 0,
+                "drawing_types": [{"type": t, "confidence": c} for t, c in zip(handler.detection.drawing_type, handler.detection.confidences)],
+                "matched_classes": list(matched_classes),
+                "unmatched_classes": list(unmatched_classes),
+                "cardinal_direction": handler.detection.cardinal_direction,
+                "scale": handler.detection.scale,
+                "room_names": handler.detection.room_names
             }
+            if visualize:
+                result["visualization"] = handler.visualize_detection(file_location)
         else:
-            logger.info(f"Segmentation successful. Rooms with labels: {true_count}, Rooms without labels: {false_count}")
-            return {
+            handler.set_prediction_image(file_location)
+            handler.segmentation_handler.run_segmentation(file_location)
+            text_detector = TextDetection()
+            text_detector.image_path = file_location
+            room_text_infos = text_detector.get_target_text([room_pattern])
+            handler.segmentation_handler.find_text_segments(room_text_infos)
+            true_count, false_count = handler.segmentation_handler.count_rooms()
+            result = {
                 "filename": file.filename,
                 "segmentation": "Segmentation completed successfully.",
                 "rooms_with_labels": true_count,
                 "rooms_without_labels": false_count,
             }
+            if visualize:
+                result["visualization"] = handler.segmentation_handler.visualize_segmentation(file_location)
 
+        os.remove(file_location)
+        logger.info(f"Temporary file {file_location} removed")
+        return result
     except Exception as e:
-        logger.error(f"Error during segmentation for file {file.filename}: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error(f"Error processing file {file.filename}: {str(e)}")
+        raise
+
+# Detect endpoint for handling object detection
+@app.post("/detect/")
+async def detect(files: List[UploadFile] = File(...), visualize: bool = False, detection_handler: DetectionHandler = Depends(get_detection_handler)):
+    try:
+        tasks = [process_file(file, True, visualize, detection_handler) for file in files]
+        results = await asyncio.gather(*tasks)
+        return results
+    except Exception as e:
+        logger.error(f"Error during detection: {str(e)}")
+        if isinstance(e, ValueError):
+            raise HTTPException(status_code=400, detail=str(e))
+        elif isinstance(e, IOError):
+            raise HTTPException(status_code=500, detail="File processing error")
+        else:
+            raise HTTPException(status_code=500, detail="Internal server error")
+
+# Segment endpoint for handling segmentation
+@app.post("/segment/")
+async def segment(files: List[UploadFile] = File(...), visualize: bool = False, segmentation_handler: SegmentationHandler = Depends(get_segmentation_handler)):
+    try:
+        tasks = [process_file(file, False, visualize, segmentation_handler) for file in files]
+        results = await asyncio.gather(*tasks)
+        return results
+    except Exception as e:
+        logger.error(f"Error during segmentation: {str(e)}")
+        if isinstance(e, ValueError):
+            raise HTTPException(status_code=400, detail=str(e))
+        elif isinstance(e, IOError):
+            raise HTTPException(status_code=500, detail="File processing error")
+        else:
+            raise HTTPException(status_code=500, detail="Internal server error")
 
 # Add a new endpoint to check the log file
 @app.get("/logs/")

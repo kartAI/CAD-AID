@@ -35,4 +35,4 @@ COPY . /app
 EXPOSE 80
 
 # Command to run the application with uvicorn
-CMD ["uvicorn", "api:app", "--host", "0.0.0.0", "--port", "80", "--log-level", "debug"]
+CMD ["uvicorn", "api:app", "--host", "0.0.0.0", "--port", "80", "--log-level", "debug", "--reload"]

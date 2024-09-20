@@ -6,10 +6,12 @@ from typing import List, Optional
 from shapely.geometry import Point, Polygon
 from utils.regex_patterns import scale_pattern, cardinal_direction_pattern, room_pattern
 from utils.text_manager import TextDetection
-from utils.models_manager import ObjectDetection
-from utils.models_manager import Segmentation
+from utils.models_manager import ObjectDetection, Segmentation
 from utils.data_structures import Detection, TextInfo, PolygonInfo
 from utils.logger import cadaid_logger
+import base64
+import cv2
+import numpy as np
 
 # Import necessary modules and classes
 
@@ -23,22 +25,22 @@ class DrawingType:
     PLANTEGNING = 'plantegning'
     SNITT = 'snitt'
 
-
 class ObjectDetectionHandler:
-    """
-    Class for handling object detection.
-    """
-    def __init__(self, model: ObjectDetection):
-        # Initialize object detection handler with model
-        self.model = model
-        # self.results = self.model.predictions(self.model.prediction_image)
+    def __init__(self):
+        self.model = ObjectDetection()
         self.results = None
         self.detection = None
-    
+        self.prediction_image = None
+        self.confidences = []
+        self.logger = cadaid_logger(__name__)
+
     def run_detection(self, image_path):
         # Run object detection on the given image
-        self.results = self.model.predictions(image_path)
+        #self.results = self.model.predictions(image_path)
         # self.results = self.model.predictions(self.model.prediction_image)
+        #self.results = self.model(image_path)
+        self.prediction_image = image_path
+        self.results = self.model.predictions(image_path)
         self.detection = self._create_detection()
     
     def _get_drawing_type(self) -> List[str]:
@@ -47,10 +49,16 @@ class ObjectDetectionHandler:
         """
         drawing_types = []
         for result in self.results:
-            boxes = result.boxes  
-            class_indices = boxes.cls  
-            class_names = [result.names[int(cls)] for cls in class_indices]  
-            drawing_types.extend(class_names)  
+            boxes = result.boxes
+            for box, cls, conf in zip(boxes.xyxy, boxes.cls, boxes.conf):
+                class_name = self.model.names[int(cls)]
+                self.logger.info(f"Detected: {class_name} with confidence {conf:.2f}")
+                if conf >= self.model.model_conf:
+                    drawing_types.append(class_name)
+                    self.confidences.append(conf.item())
+                else:
+                    self.logger.info(f"Detection below threshold: {class_name} with confidence {conf:.2f}")
+        self.logger.info(f"Final drawing types: {drawing_types}")
         return drawing_types
     
     def _create_detection(self) -> Detection:
@@ -60,17 +68,15 @@ class ObjectDetectionHandler:
         drawing_types = self._get_drawing_type()
         return Detection(drawing_type=drawing_types)
 
-    def get_detection(self) -> Detection:
-        return self.detection.drawing_type
+    def get_detection(self):
+        return self.detection.drawing_type, self.confidences
 
 class SegmentationHandler:
-    def __init__(self, model: Segmentation):
-        # Initialize segmentation handler with model and logger
-        self.model = model
-        # self.results = self.model.predictions(self.model.prediction_image)
+    def __init__(self):
+        self.model = Segmentation()
         self.seg_results = None
         self.rooms_found = []
-        self.logger = cadaid_logger(__name__)  # Legg til denne linjen
+        self.logger = cadaid_logger(__name__)
 
     def run_segmentation(self, image_path):
         # Run segmentation on the given image
@@ -120,27 +126,47 @@ class SegmentationHandler:
         true_count = sum(1 for room in self.rooms_found if room.room)
         false_count = sum(1 for room in self.rooms_found if not room.room)
         return true_count, false_count
-	
+
+    def visualize_segmentation(self, filename):
+        if not self.seg_results:
+            self.logger.warning("No segmentation results available for visualization.")
+            return None
+
+        image = cv2.imread(filename)
+        if image is None:
+            self.logger.warning(f"Failed to read image from {filename}")
+            return None
+
+        for i, room in enumerate(self.rooms_found):
+            color = (0, 255, 0) if room.room else (0, 0, 255)
+            points = np.array(room.polygon.exterior.coords, np.int32)
+            points = points.reshape((-1, 1, 2))
+            cv2.polylines(image, [points], True, color, 2)
+
+        # Add text for room counts
+        true_count, false_count = self.count_rooms()
+        cv2.putText(image, f"Rooms with labels: {true_count}", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+        cv2.putText(image, f"Rooms without labels: {false_count}", (10, 70), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
+
+        # Convert the image to base64
+        _, buffer = cv2.imencode('.png', image)
+        base64_image = base64.b64encode(buffer).decode('utf-8')
+
+        return base64_image
+
 class TextHandler:
     def __init__(self, ocr: TextDetection):
         # Initialize text handler with OCR model
         self.ocr = ocr
-      
-    def get_cardinal_direction(self, patterns: List[str]) -> List[str]:
-        """
-        Args:
-            patterns: List of patterns to search for in the detected text.
-        returns:
-            List of cardinal directions found in the detected text.
-        """
-        #self.detection.cardinal_direction = [text.text for text in self.ocr.get_target_text(patterns)]
-        return [text.text for text in self.ocr.get_target_text(patterns)]
-        
-    
-    def get_scale(self, patterns: List[str]) -> List[str]:
-        return [text.text for text in self.ocr.get_target_text(patterns)]
-        
-    
+
+    def get_cardinal_direction(self, patterns: List[str]) -> Optional[str]:
+        text_infos = self.ocr.get_target_text(patterns)
+        return text_infos[0].text if text_infos else None
+
+    def get_scale(self, patterns: List[str]) -> Optional[str]:
+        text_infos = self.ocr.get_target_text(patterns)
+        return text_infos[0].text if text_infos else None
+
     def get_room_names(self, patterns: List[str]) -> List[TextInfo]:
         """
         Args:
@@ -149,18 +175,14 @@ class TextHandler:
             List of TextInfo objects containing the room
         """
         return self.ocr.get_target_text(patterns)
-        
-    
-    
 
 class DetectionHandler:
     def __init__(self):
         # Initialize detection handler with necessary components
         self.logger = cadaid_logger(__name__)
         self.detection = Detection()
-        self.object_detection = ObjectDetectionHandler(ObjectDetection())
-        self.segmentation_handler = SegmentationHandler(Segmentation())
-        # self.segmentation_results = None
+        self.object_detection = ObjectDetectionHandler()
+        self.segmentation_handler = SegmentationHandler()
         self.prediction_image_path = None
 
     def set_prediction_image(self, image_path):
@@ -174,15 +196,11 @@ class DetectionHandler:
 
         self.logger.info("Starting object detection...")
         self.object_detection.run_detection(self.prediction_image_path)
-        self.detection.drawing_type = self.object_detection.get_detection()
-        # object_detection = ObjectDetectionHandler(ObjectDetection())
-        
-        # self.detection.drawing_type = object_detection.get_detection()
-    
-       
+        self.detection.drawing_type, self.detection.confidences = self.object_detection.get_detection()
+
         if not self.detection.drawing_type:
             self.logger.warning("No drawing type available.")
-            return  # No drawing type available
+            return
 
         
         # Define actions based on drawing types
@@ -212,19 +230,46 @@ class DetectionHandler:
                 
                 #segmentation = SegmentationHandler(Segmentation())
                 self.logger.info("Performing segmentation...")
+                self.segmentation_handler.run_segmentation(self.prediction_image_path)
                 self.segmentation_results = self.segmentation_handler.find_text_segments(room_text_infos)
 
                 true_count, false_count = self.segmentation_handler.count_rooms()
                 self.logger.info(f"Number of rooms with room label: {true_count}")
                 self.logger.info(f"Number of rooms without room label: {false_count}")
 
+        self.logger.info("Detection and segmentation completed.")
 
-        
-                self.logger.info("Segmentation completed.")
-
-    
     def get_segmentation_results(self):
         return self.segmentation_results
+
+    def visualize_detection(self, filename):
+        if not self.prediction_image_path:
+            self.logger.warning("No prediction image path set for visualization.")
+            return None
+
+        image = cv2.imread(self.prediction_image_path)
+        if image is None:
+            self.logger.warning(f"Failed to read image from {self.prediction_image_path}")
+            return None
+
+        for dtype, confidence in zip(self.detection.drawing_type, self.detection.confidences):
+            cv2.putText(image, f"{dtype}: {confidence:.2f}", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+
+        if self.detection.cardinal_direction:
+            cv2.putText(image, f"Cardinal Direction: {self.detection.cardinal_direction}", (10, 70), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 0), 2)
+
+        if self.detection.scale:
+            cv2.putText(image, f"Scale: {self.detection.scale}", (10, 110), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
+
+        if self.detection.room_names:
+            for i, room in enumerate(self.detection.room_names):
+                cv2.putText(image, room, (10, 150 + i*40), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 0), 2)
+
+        # Convert the image to base64
+        _, buffer = cv2.imencode('.png', image)
+        base64_image = base64.b64encode(buffer).decode('utf-8')
+
+        return base64_image
 
 
             

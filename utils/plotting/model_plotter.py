@@ -1,5 +1,3 @@
-
-
 import cv2
 import numpy as np
 from PIL import Image
@@ -7,10 +5,11 @@ from ultralytics.utils.plotting import Annotator, colors
 
 class ModelPlotter:
     def __init__(self, model_instance):
+        self.model_instance = model_instance
 
         
       
-        self.image_path = model_instance.prediction_image
+        self.image_path = getattr(model_instance, 'prediction_image', None)
 
     def visualize_predictions(self, results):
         for r in results:

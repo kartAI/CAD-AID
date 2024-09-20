@@ -29,18 +29,22 @@ class ModelsManager:
         self.model_path = model_path
         self.model_conf = model_conf
         self.data_yaml = data_yaml
-        self.prediction_image = self._config.PREDICTION_IMAGE_PATH
+        #self.prediction_image = self._config.PREDICTION_IMAGE_PATH
+        self.prediction_image = None
 
         self.model = YOLO(self.model_path)
-
         self.plotter = ModelPlotter(self)
 
+    def train(self, epochs: int, batch_size: int):
+        """
+        Train the model.
 
-    
-    def train_model(self, epochs):
-        self.model.train(data = self.data_yaml, epochs=epochs)
+        :param epochs: Number of epochs to train for.
+        :param batch_size: Batch size for training.
+        """
+        self.model.train(data=self.data_yaml, epochs=epochs, batch=batch_size)
 
-    def predictions(self, image) -> list:
+    def predictions(self, image):
         return self.model(image,
                           save=False, 
                           stream=True, 
@@ -61,6 +65,7 @@ class ObjectDetection(ModelsManager):
                          model_conf=self._config.OBJECT_DETECTION_CONFIDENCE,
                          data_yaml=self._config.OBJECT_DETECTION_YAML
                         )
+        self.names = self.model.names  # Add this line to include the names attribute
 
     def predictions(self, image_path):
         return self.model(image_path,
@@ -68,7 +73,7 @@ class ObjectDetection(ModelsManager):
                           stream=True, 
                           visualize=False, 
                           conf=self.model_conf)
-    
+                         
 class Segmentation(ModelsManager):
     def __init__(self):
         self._config = Config()
