@@ -1,0 +1,15 @@
+opencv-python
+pdf2image
+Pillow
+ultralytics
+flask
+easyocr
+numpy
+shapely
+fastapi
+uvicorn
+python-multipart
+dill
+azureml-core
+python-dotenv
+azure-cli>=2.30.0

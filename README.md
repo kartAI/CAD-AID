@@ -1,4 +1,60 @@
 Repository for praksisstudentene ved Norkart
+# Run project in Docker
+
+## Step 1.
+
+Build the docker image with cli commands or script:
+
+### 1. With CLI:
+```
+docker build -t <image_name> .
+```
+
+Run the Docker image to create Docker container:
+```
+docker run -d --name <container_name> <image_name>
+```
+### 2. With script in the project:
+On windows, open git bash in terminal and run:
+```
+.scripts/rebuild_image.sh
+```
+This scripts creates the image "fastapi_app" and container "fastapi_container" from the Dockerfile
+
+Open the fast api app in browser from provided link in terminal.
+
+## Step 2.
+Run the fast api app in browser:
+
+map the local port 8000 to webport 80:
+```
+docker run -d -p 8000:80 --name <container_name> <image_name>
+```
+
+To run manually inside container, map the terminal to docker container:
+```
+docker exec -it <container_name> /bin/bash
+```
+
+Run the fast api and open in local webbrowser:
+```
+uvicorn api:app --reload
+```
+
+To exit the container:
+```
+exit
+```
+
+After making changes, rebuild the image:
+```
+docker build -t <container_name> .  
+```
+
+
+
+
+
 # Objektdeteksjon i byggesakstegninger
 ## Beskrivelse
 Prosjektet ble gjennomført av en praksisstudent fra integrert master i kunstig intelligens ved UiA, Grimstad.  
@@ -256,3 +312,4 @@ Det er allerede lagt inn noen få eksempler på slike tegninger.
 ### Flask app
 * Legge til funksjon slik at det kan lastes opp PDF filer i appen som omgjøres til jpg. Sjekk om "convertFromPDF.py" i mappa "dataPrep" kan skrives litt om og brukes i appen.
 * Modellens path som brukes i "app.py" er den samme fra "yolo_model.py". Fiks i koden for å unngå å endre stien i to ulike filer. 
+
