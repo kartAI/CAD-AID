@@ -2,14 +2,12 @@ from fastapi import FastAPI, File, UploadFile, HTTPException, Depends, Form
 from pathlib import Path
 from pdf2image import convert_from_path
 import cv2
-
-
-
 from dotenv import load_dotenv
 import os
 from fastapi.middleware.cors import CORSMiddleware
 from typing import List
 from concurrent.futures import ThreadPoolExecutor
+from enum import Enum
 import yaml
 import asyncio
 
@@ -24,6 +22,7 @@ from .utils.data_structures import Metadata, DrawingType
 from .utils.regex_patterns import cardinal_direction_pattern, room_pattern, scale_pattern
 from .utils.text_detection import TextDetection
 from .utils.json_response_converter import json_response_converter
+
 # Set up logging
 logger = cadaid_logger(__name__)
 
@@ -33,7 +32,6 @@ load_dotenv(".env.dev")
 
 app = FastAPI()
 
-
 # Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
@@ -42,10 +40,10 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
 UPLOAD_DIRECTORY = Path("static/uploads")
 UPLOAD_DIRECTORY.mkdir(parents=True, exist_ok=True)
 FEEDBACK_DIRECTORY = "feedback"
-
 os.makedirs(FEEDBACK_DIRECTORY, exist_ok=True)
 
 class FeedbackModel(BaseModel):
@@ -55,57 +53,55 @@ class FeedbackModel(BaseModel):
     bbox: List[List[float]]
     confidence: List[float]
 
-
-
 def detect_and_validate(image, uploaded_file):
     obj_det = ObjectDetectionHandler()
 
     # returns lists of tensors
-    drawing_types, bbox, confidence=obj_det.run_detection(image)
+    drawing_types, bbox, confidence = obj_det.run_detection(image)
   
-    # get values from list of tensors
-    class_name_map = {0:'fasade', 1: 'plantegning', 2:'situasjonskart', 3:'snitt'}     # TODO: to be fixed, labels shouldnt be hardcoded
-    drawing_types = [class_name_map[int(drawing_type)] for drawing_type in drawing_types]
-    bbox =  [bbox_tensor.tolist() for bbox_tensor in bbox]
+    # Map class indices to labels using DrawingType enum
+    drawing_types = [DrawingType(int(drawing_type)).name.lower() for drawing_type in drawing_types]
+    bbox = [bbox_tensor.tolist() for bbox_tensor in bbox]
     confidence = [conf.item() for conf in confidence]
 
-   
     logger.info(f"Detected results  {drawing_types}, bbox:{bbox}")
     
-    # Store object detection results in Metadata class. TODO: Write cleaner with fewer lines?
-    detection = Metadata()
-    detection.filename = uploaded_file.filename
-    detection.drawing_types=drawing_types
-    detection.bbox = bbox
-    detection.confidence = confidence
+    # Store object detection results in Metadata class
+    detection = Metadata(
+        filename=uploaded_file.filename,
+        drawing_types=drawing_types,
+        bbox=bbox,
+        confidence=confidence
+    )
 
     text = TextDetection()
     text.easy_ocr(image)
 
     for dtype in drawing_types:
-            if dtype == DrawingType.FASADE:
-                # Find cardinal direction
-                cardinal_direction = text.get_cardinal_direction([cardinal_direction_pattern]) 
-                detection.cardinal_direction = cardinal_direction
+        if dtype == DrawingType.FASADE.name.lower():
+            # Find cardinal direction
+            cardinal_direction = text.get_cardinal_direction([cardinal_direction_pattern]) 
+            detection.cardinal_direction = cardinal_direction
 
-            elif dtype == DrawingType.SITUASJONSKART:
-                # Find scale
-                scale = text.get_scale([scale_pattern])
-                detection.scale = scale
-              
+        elif dtype == DrawingType.SITUASJONSKART.name.lower():
+            # Find scale
+            scale = text.get_scale([scale_pattern])
+            detection.scale = scale
 
-            elif dtype == DrawingType.PLANTEGNING: # TODO: does not work as intended 
+        elif dtype == DrawingType.PLANTEGNING.name.lower():
+            try:
                 room_text_infos = text.get_room_names([room_pattern])
                 room_names = [text.text for text in room_text_infos]
                 detection.room_names = room_names
-               
-                
-                segmentation = SegmentationHandler()
 
+                segmentation = SegmentationHandler()
                 segmentation.run_segmentation(image)
                 segmentation_results = segmentation.find_text_segments(room_text_infos)
 
                 segmentation_data = segmentation_results
+                    
+            except Exception as e:
+                logger.error(f"Error processing plantegning: {e}")
 
                 # might use later:
                 #true_count, false_count = segmentation.count_rooms()
@@ -134,9 +130,8 @@ def process_file(uploaded_file):
 
     elif uploaded_file.filename.lower().endswith(('.jpg', '.jpeg', '.png')):
         image = cv2.imread(file_path)
-        detection = (detect_and_validate(image, uploaded_file))
+        detection = detect_and_validate(image, uploaded_file)
         detection_response.append(detection)
-        
 
     os.remove(file_path)
     if len(detection_response) > 0:
@@ -147,18 +142,15 @@ metadata_store = {}
 
 @app.post("/detect/")
 async def detect_objects(uploaded_files: List[UploadFile]):
-
     with ThreadPoolExecutor() as executor:
         metadata_results = list(executor.map(process_file, uploaded_files))
         for metadata in metadata_results:
             metadata_store[metadata.filename] = metadata
         return json_response_converter(metadata_results)
 
-
 @app.post("/feedback")
 async def feedback(filename: str = Form(...),
-                   user_response: str = Form(...),
-                   ):
+                   user_response: str = Form(...)):
     if filename not in metadata_store:
         raise HTTPException(status_code=404, detail="Metadata not found")
     
@@ -180,7 +172,6 @@ async def feedback(filename: str = Form(...),
         json.dump(feedback_data, f, indent=4)
 
     return {'message': 'Feedback admitted', 'feedback': feedback_data} 
-
 
 # Add a new endpoint to check the log file
 @app.get("/logs/")
