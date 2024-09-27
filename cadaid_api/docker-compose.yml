@@ -1,0 +1,31 @@
+version: '3.8'
+services:
+  detect:
+    build:
+      context: .
+      dockerfile: detect/Dockerfile
+    ports:
+      - "8000:80"
+    volumes:
+      - ./shared:/app/shared
+      - ./shared/static/uploads:/app/static/uploads
+    environment:
+      - PYTHONPATH=/app
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+  feedback:
+    build:
+      context: .
+      dockerfile: feedback/Dockerfile
+    ports:
+      - "8001:80"
+    volumes:
+      - ./shared:/app/shared
+      - ./shared/static/uploads:/app/static/uploads
+    environment:
+      - PYTHONPATH=/app
