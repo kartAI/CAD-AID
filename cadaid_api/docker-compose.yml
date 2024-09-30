@@ -2,8 +2,8 @@ version: '3.8'
 services:
   detect:
     build:
-      context: .
-      dockerfile: detect/Dockerfile
+      context: ./detect
+      dockerfile: Dockerfile
     ports:
       - "8000:80"
     volumes:
@@ -20,8 +20,8 @@ services:
               capabilities: [gpu]
   feedback:
     build:
-      context: .
-      dockerfile: feedback/Dockerfile
+      context: ./feedback
+      dockerfile: Dockerfile
     ports:
       - "8001:80"
     volumes:

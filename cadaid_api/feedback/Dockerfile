@@ -24,11 +24,11 @@ RUN pip install --upgrade pip && \
     pip install --no-cache-dir -r requirements.txt
 
 # Copy only the necessary application files
-COPY ../shared/ /app/shared
-COPY . /app/feedback
+COPY ./shared/ /app/shared
+COPY ./feedback /app/feedback
 
 # Expose port for the API
 EXPOSE 80
 
 # Command to run the application with uvicorn
-CMD ["uvicorn", "feedback.main:app", "--host", "0.0.0.0", "--port", "80", "--log-level", "debug", "--reload"]
+CMD ["uvicorn", "src.api:app", "--host", "0.0.0.0", "--port", "80", "--log-level", "debug", "--reload"]

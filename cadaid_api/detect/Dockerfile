@@ -1,4 +1,4 @@
-FROM nvidia/cuda:12.6.1-cudnn-runtime-ubuntu22.04
+FROM nvidia/cuda:12.3.2-cudnn9-runtime-ubuntu22.04
 
 # Set environment variables to prevent Python from writing pyc files
 ENV PYTHONDONTWRITEBYTECODE=1
@@ -45,4 +45,4 @@ COPY . /app/detect
 EXPOSE 80
 
 # Command to run the application with uvicorn
-CMD ["python", "-m", "uvicorn", "detect.main:app", "--host", "0.0.0.0", "--port", "80", "--log-level", "debug", "--reload"]
+CMD ["python", "-m", "uvicorn", "src.api:app", "--host", "0.0.0.0", "--port", "80", "--log-level", "debug", "--reload"]
