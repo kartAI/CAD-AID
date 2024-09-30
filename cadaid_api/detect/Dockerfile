@@ -30,7 +30,7 @@ WORKDIR /app
 RUN mkdir -p /app/logs /app/temp_files /app/static/uploads
 
 # Install Python dependencies
-COPY ../shared/requirements.txt /app/requirements.txt
+COPY requirements.txt /app/requirements.txt
 RUN pip install --upgrade pip && \
     pip install --no-cache-dir -r requirements.txt
 
@@ -38,7 +38,7 @@ RUN pip install --upgrade pip && \
 RUN pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
 
 # Copy only the necessary application files
-COPY ../shared/ /app/shared
+COPY shared/ /app/shared
 COPY . /app/detect
 
 # Expose port for the API
