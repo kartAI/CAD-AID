@@ -26,20 +26,21 @@ RUN ln -sf /usr/bin/python3 /usr/bin/python && \
 # Set working directory
 WORKDIR /app
 
+COPY shared/ /app/shared
+
 # Create logs directory
 RUN mkdir -p /app/logs /app/temp_files /app/static/uploads
 
 # Install Python dependencies
-COPY requirements.txt /app/requirements.txt
+COPY shared/requirements.txt /app/requirements.txt
 RUN pip install --upgrade pip && \
-    pip install --no-cache-dir -r requirements.txt
+    pip install --no-cache-dir -r /app/requirements.txt
 
 # Install PyTorch with CUDA support
 RUN pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
 
 # Copy only the necessary application files
-COPY shared/ /app/shared
-COPY . /app/detect
+COPY detect/src /app/src
 
 # Expose port for the API
 EXPOSE 80

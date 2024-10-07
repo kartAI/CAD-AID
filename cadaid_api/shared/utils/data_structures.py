@@ -2,6 +2,7 @@ from dataclasses import dataclass
 from typing import List
 from shapely.geometry import Polygon
 from typing import List, Optional
+from enum import Enum
 
 
 
@@ -25,7 +26,9 @@ class Metadata:
     confidence: Optional[List[float]] = None,
     cardinal_direction: Optional[List[str]] = None,
     scale: Optional[str] = None,
-    room_names: Optional[List[str]]= None):
+    room_names: Optional[List[str]]= None,
+    store: Optional[dict] = None):
+
         self.filename = filename
         self.drawing_types = drawing_types
         self.bbox = bbox
@@ -33,6 +36,7 @@ class Metadata:
         self.cardinal_direction = cardinal_direction
         self.scale = scale
         self.room_names = room_names
+        self.store = store or {}
     
     def convert_to_dict(self):
         return {
@@ -42,7 +46,8 @@ class Metadata:
             'confidence': self.confidence,
             'cardinal_direction': self.cardinal_direction,
             'scale': self.scale,
-            'room_names': self.room_names
+            'room_names': self.room_names,
+            'store': self.store
         }
 
 @dataclass
@@ -51,7 +56,7 @@ class ObjDetData:
     bbox: Optional[List[float]] = None
     confidence: Optional[List[float]] = None
 
-class DrawingType:
+class DrawingType(Enum):
     """
     Enum class for drawing types.
     """

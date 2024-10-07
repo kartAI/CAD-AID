@@ -1,5 +1,4 @@
 from typing import List, Optional
-from .data_structures import TextInfo
 
 import sys
 import os
@@ -10,8 +9,7 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 import easyocr
 import cv2
 import re
-from typing import List
-from cadaid_api.shared.config import Config
+from shared.config import Config
 
 from .data_structures import TextInfo, PolygonInfo 
 

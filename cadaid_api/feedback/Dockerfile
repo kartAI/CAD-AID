@@ -15,17 +15,19 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Set working directory
 WORKDIR /app
 
+# Copy the shared directory before the volume is mounted
+COPY shared/ /app/shared
+
 # Create logs directory
 RUN mkdir -p /app/logs /app/temp_files /app/static/uploads
 
 # Install Python dependencies
-COPY requirements.txt /app/requirements.txt
+COPY shared/requirements.txt /app/requirements.txt
 RUN pip install --upgrade pip && \
-    pip install --no-cache-dir -r requirements.txt
+    pip install --no-cache-dir -r /app/requirements.txt
 
 # Copy only the necessary application files
-COPY shared/ /app/shared
-COPY ./feedback /app/feedback
+COPY feedback/src /app/src
 
 # Expose port for the API
 EXPOSE 80

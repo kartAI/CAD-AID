@@ -6,6 +6,7 @@ from concurrent.futures import ThreadPoolExecutor
 from typing import List
 import os
 from dotenv import load_dotenv
+import time
 
 from shared.utils.logger import cadaid_logger
 from shared.utils.object_detection import ObjectDetectionHandler
@@ -29,16 +30,24 @@ UPLOAD_DIRECTORY.mkdir(parents=True, exist_ok=True)
 
 class DetectionService:
     def __init__(self):
-        self.metadata.store = {}
+        self.metadata = {}
         
     def detect_and_validate(self, image, uploaded_file):
         obj_det = ObjectDetectionHandler()
         
         # Return lists of tensors
         drawing_types, bbox, confidence = obj_det.run_detection(image)
+
+        # Mapping class indices to labels using DrawingType enum
+        drawing_type_map = {
+            0: DrawingType.FASADE,
+            1: DrawingType.PLANTEGNING,
+            2: DrawingType.SITUASJONSKART,
+            3: DrawingType.SNITT
+        }
         
         # Map class indices to labels using DrawingType enum
-        drawing_types = [DrawingType(int(drawing_type)).name.lower() for drawing_type in drawing_types]
+        drawing_types = [drawing_type_map.get(int(drawing_type), "unknown").name.lower() for drawing_type in drawing_types]
         bbox = [bbox_tensor.tolist() for bbox_tensor in bbox]
         confidence = [conf.item() for conf in confidence]
         
@@ -114,10 +123,15 @@ detection_service = DetectionService()
 
 @app.post("/detect")
 async def detect_objects(uploaded_files: List[UploadFile]):
+    start_time = time.time()
     with ThreadPoolExecutor() as executor:
         metadata_results = list(executor.map(detection_service.process_file, uploaded_files))
         for metadata in metadata_results:
-            detection_service.metadata.store[metadata.filename] = metadata
+            detection_service.metadata[metadata.filename] = metadata
+
+    end_time = time.time()
+    elapsed_time = end_time - start_time
+    logger.info(f"Time taken for detection: {elapsed_time} seconds")
             
-        return json_response_converter(metadata_results)
+    return json_response_converter(metadata_results)
     
