@@ -16,3 +16,7 @@ azure-cli>=2.30.0
 torch
 torchvision
 torchaudio
+pyjwt
+passlib[bcrypt]
+python-jose
+fastapi-security

@@ -1,4 +1,6 @@
-from fastapi import FastAPI, HTTPException, Form
+from fastapi import FastAPI, HTTPException, Form, Depends, status, Security
+from fastapi.security.api_key import APIKeyHeader
+
 from pydantic import BaseModel
 from typing import List
 from dotenv import load_dotenv
@@ -7,6 +9,7 @@ import json
 
 from shared.utils.logger import cadaid_logger
 from shared.utils.data_structures import Metadata
+from shared.auth import get_api_key
 
 # Set up logger
 logger = cadaid_logger(__name__)
@@ -15,8 +18,22 @@ logger = cadaid_logger(__name__)
 logger.info("Loading environment variables")
 load_dotenv("/app/shared/.env.dev")
 
+
 # Set up FastAPI app
-app = FastAPI()
+app = FastAPI(root_path="/feedback",
+              title="Feedback API",
+              description="API for feedback submission using CADAID system",
+              version="1.0.0",
+              docs_url="/docs",
+              open_api_url="/openapi.json",
+              openapi_tags=[{
+                "name": "Feedback",
+                "description": "API for feedback submission to further improve the CADAID system"
+              }], 
+              swagger_ui_init_oauth={
+                  "apiKeyName": "X-API-Key"
+              }
+        )
 
 FEEDBACK_DIRECTORY = "feedback"
 os.makedirs(FEEDBACK_DIRECTORY, exist_ok=True)
@@ -33,9 +50,13 @@ class FeedbackModel(BaseModel):
 
 metadata_store = {}
 
-@app.post("/feedback")
-async def feedback(filename: str = Form(...),
-                   user_response: str = Form(...)):
+@app.post("/")
+async def feedback(
+    filename: str = Form(...),
+    user_response: str = Form(...),
+    api_key: APIKeyHeader = Depends(get_api_key)
+):
+    # Use the authentication function to validate the API key
     if filename not in metadata_store:
         raise HTTPException(status_code=404, detail="Metadata not found")
     
