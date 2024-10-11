@@ -2,18 +2,15 @@ from fastapi import FastAPI, File, UploadFile, HTTPException, Depends, Form
 from pathlib import Path
 from pdf2image import convert_from_path
 import cv2
-
-
-
 from dotenv import load_dotenv
 import os
 from fastapi.middleware.cors import CORSMiddleware
-from typing import List
+from typing import List, Annotated
 from concurrent.futures import ThreadPoolExecutor
 import yaml
 import asyncio
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Body
 from pydantic import BaseModel
 import json
 
@@ -48,67 +45,70 @@ FEEDBACK_DIRECTORY = "feedback"
 
 os.makedirs(FEEDBACK_DIRECTORY, exist_ok=True)
 
+class_name_map = {0:'fasade', 1: 'plantegning', 2:'situasjonskart', 3:'snitt'}
+
 class FeedbackModel(BaseModel):
     filename: str
-    user_response: str
-    drawing_type: List[str]
-    bbox: List[List[float]]
-    confidence: List[float]
+    drawing_types: list
+    is_correct: bool
 
+def map_drawing_types(drawing_types):
+    return [class_name_map[int(drawing_type)] for drawing_type in drawing_types]
 
-
-def detect_and_validate(image, uploaded_file):
+def extract_metadata(image, uploaded_file):
     obj_det = ObjectDetectionHandler()
-
-    # returns lists of tensors
     drawing_types, bbox, confidence=obj_det.run_detection(image)
-  
-    # get values from list of tensors
-    class_name_map = {0:'fasade', 1: 'plantegning', 2:'situasjonskart', 3:'snitt'}     # TODO: to be fixed, labels shouldnt be hardcoded
-    drawing_types = [class_name_map[int(drawing_type)] for drawing_type in drawing_types]
+
+    drawing_types = map_drawing_types(drawing_types)
     bbox =  [bbox_tensor.tolist() for bbox_tensor in bbox]
     confidence = [conf.item() for conf in confidence]
 
-   
-    logger.info(f"Detected results  {drawing_types}, bbox:{bbox}")
-    
-    # Store object detection results in Metadata class. TODO: Write cleaner with fewer lines?
-    detection = Metadata()
-    detection.filename = uploaded_file.filename
-    detection.drawing_types=drawing_types
-    detection.bbox = bbox
-    detection.confidence = confidence
+    return drawing_types,bbox, confidence
 
+def process_text_and_detection(detection, drawing_types, image):
     text = TextDetection()
     text.easy_ocr(image)
 
     for dtype in drawing_types:
             if dtype == DrawingType.FASADE:
                 # Find cardinal direction
-                cardinal_direction = text.get_cardinal_direction([cardinal_direction_pattern]) 
+                cardinal_direction = text.get_cardinal_direction([cardinal_direction_pattern])
+
                 detection.cardinal_direction = cardinal_direction
+               
 
             elif dtype == DrawingType.SITUASJONSKART:
                 # Find scale
                 scale = text.get_scale([scale_pattern])
                 detection.scale = scale
-              
+                
 
             elif dtype == DrawingType.PLANTEGNING: # TODO: does not work as intended 
                 room_text_infos = text.get_room_names([room_pattern])
                 room_names = [text.text for text in room_text_infos]
                 detection.room_names = room_names
-               
-                
                 segmentation = SegmentationHandler()
-
+        
                 segmentation.run_segmentation(image)
                 segmentation_results = segmentation.find_text_segments(room_text_infos)
+                true_count,false_count = segmentation.count_rooms()
+                detection.room_count = true_count + false_count
 
-                segmentation_data = segmentation_results
+    return detection
 
-                # might use later:
-                #true_count, false_count = segmentation.count_rooms()
+def detect_and_validate(image, uploaded_file):
+    
+    drawing_types, bbox, confidence = extract_metadata(image, uploaded_file)
+    
+    # Store object detection results in Metadata class. TODO: Write cleaner with fewer lines?
+    detection = Metadata(
+        filename=uploaded_file.filename,
+        drawing_types=drawing_types,
+        bbox=bbox,
+        confidence=confidence
+
+    )
+    detection = process_text_and_detection(detection, drawing_types, image)
               
     return detection
 
@@ -139,47 +139,33 @@ def process_file(uploaded_file):
         
 
     os.remove(file_path)
-    if len(detection_response) > 0:
+    if detection_response:
         return detection_response[0]
-    return Metadata()
+    
+    return None
 
 metadata_store = {}
+response_store = []
 
 @app.post("/detect/")
 async def detect_objects(uploaded_files: List[UploadFile]):
 
     with ThreadPoolExecutor() as executor:
         metadata_results = list(executor.map(process_file, uploaded_files))
+        response = json_response_converter(metadata_results)
+        response_store.append(response)
+        
         for metadata in metadata_results:
-            metadata_store[metadata.filename] = metadata
-        return json_response_converter(metadata_results)
-
-
-@app.post("/feedback")
-async def feedback(filename: str = Form(...),
-                   user_response: str = Form(...),
-                   ):
-    if filename not in metadata_store:
-        raise HTTPException(status_code=404, detail="Metadata not found")
+            if metadata:
+                metadata_store[metadata.filename] = metadata
+        
+        return response
     
-    metadata = metadata_store[filename]
 
-    if user_response not in ['ja', 'nei']:
-        raise HTTPException(status_code=400, detail="Invalid response") 
 
-    feedback_data = {
-        'filename': metadata.filename,
-        'user_response': user_response,
-        'drawing_type': metadata.drawing_types,
-        'bbox': metadata.bbox,
-        'confidence': metadata.confidence
-    }  
-
-    feedback_file = os.path.join(FEEDBACK_DIRECTORY, f"{filename}_feedback.json")
-    with open(feedback_file, 'w') as f:
-        json.dump(feedback_data, f, indent=4)
-
-    return {'message': 'Feedback admitted', 'feedback': feedback_data} 
+@app.get("/feedbacks", response_model=list[Metadata])
+async def submit_feedback():
+    return response_store
 
 
 # Add a new endpoint to check the log file
