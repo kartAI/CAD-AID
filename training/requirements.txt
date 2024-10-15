@@ -1,0 +1,13 @@
+ultralytics
+opencv-python
+torch
+torchvision
+numpy
+pandas
+scikit-learn
+pdf2image
+labelImg
+matplotlib
+pillow
+azure-ai-ml
+azure-identity

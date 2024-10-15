@@ -1,5 +1,5 @@
 from azure.ai.ml.entities import OnlineDeployment, ManagedOnlineEndpoint
-from workspace import ml_client
+from training.workspace import ml_client
 import os
 
 # Get environment variables

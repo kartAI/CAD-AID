@@ -1,0 +1,16 @@
+# Ignore data directories
+data/
+data_seg/
+data_prep/
+
+# Ignore model directories
+models/
+
+# Ignore cache and temporary files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.cache
+logs/
+outputs/

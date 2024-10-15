@@ -1,5 +1,5 @@
 from azure.ai.ml import MLClient
-from azure.identity import DefaultAzureCredential, EnvironmentCredential
+from azure.identity import DefaultAzureCredential
 import os
 from dotenv import load_dotenv
 
@@ -10,7 +10,12 @@ load_dotenv(env_path)
 # Get environment variables
 subscription_id = os.getenv("AZURE_SUBSCRIPTION_ID")
 resource_group = os.getenv("AZURE_RESOURCE_GROUP")
-workspace_name = os.getenv("AZURE_WORKSPACE_NAME")
+workspace_name = os.getenv("AZUREML_WORKSPACE_NAME")
+
+# Print environment variables for debugging
+print(f"Subscription ID: {subscription_id}")
+print(f"Resource Group: {resource_group}")
+print(f"Workspace Name: {workspace_name}")
 
 # Debugging: Ensure variables is not 'None'
 if not subscription_id or not resource_group or not workspace_name:
@@ -19,15 +24,14 @@ if not subscription_id or not resource_group or not workspace_name:
     print(f"Resource Group: {resource_group}")
     print(f"Workspace Name: {workspace_name}")
     exit(1)
-    
-credential = EnvironmentCredential()
+
 
 try:
     # Connect to Azure ML workspace
     ml_client = MLClient(
         DefaultAzureCredential(),
         subscription_id=subscription_id,
-        resource_group=resource_group,
+        resource_group_name=resource_group,
         workspace_name=workspace_name,
     )
     
