@@ -17,7 +17,7 @@ class PolygonInfo:
 
 
 class Metadata(BaseModel):
-    
+    detection_id: Optional[str] = None
     filename: Optional[str] = None
     drawing_types: Optional[List[str]] = None
     bbox: Optional[List[List[float]]] = None
@@ -25,9 +25,11 @@ class Metadata(BaseModel):
     cardinal_direction: Optional[List[str]] = None
     scale: Optional[str] = None
     room_names: Optional[List[str]] = None
-    room_count: Optional[List[int]] = None
-    is_correct: Optional[bool] = None
+    room_count: Optional[int] = None
+    rooms_with_label: Optional[List[str]] = None
 
+    detection_message: Optional[str] = None
+    #is_detection_correct: Optional[bool] = None
 
     class Config:
         arbitrary_types_allowed = True

@@ -1,18 +1,21 @@
-from fastapi import FastAPI, File, UploadFile, HTTPException, Depends, Form
+from fastapi import FastAPI, File, UploadFile, HTTPException, Depends, Form, Query
 from pathlib import Path
 from pdf2image import convert_from_path
 import cv2
 from dotenv import load_dotenv
+from pydantic import field_validator
 import os
 from fastapi.middleware.cors import CORSMiddleware
 from typing import List, Annotated
 from concurrent.futures import ThreadPoolExecutor
 import yaml
 import asyncio
+from typing import Optional, Dict
 
 from fastapi import APIRouter, Body
 from pydantic import BaseModel
 import json
+from uuid import uuid4
 
 from .utils.logger import cadaid_logger
 from .utils.object_detection import ObjectDetectionHandler
@@ -21,6 +24,8 @@ from .utils.data_structures import Metadata, DrawingType
 from .utils.regex_patterns import cardinal_direction_pattern, room_pattern, scale_pattern
 from .utils.text_detection import TextDetection
 from .utils.json_response_converter import json_response_converter
+from utils.messages import MESSAGES
+
 # Set up logging
 logger = cadaid_logger(__name__)
 
@@ -41,74 +46,83 @@ app.add_middleware(
 )
 UPLOAD_DIRECTORY = Path("static/uploads")
 UPLOAD_DIRECTORY.mkdir(parents=True, exist_ok=True)
-FEEDBACK_DIRECTORY = "feedback"
 
-os.makedirs(FEEDBACK_DIRECTORY, exist_ok=True)
+FEEDBACK_DIRECTORY = Path("static/feedback")
 
-class_name_map = {0:'fasade', 1: 'plantegning', 2:'situasjonskart', 3:'snitt'}
+FEEDBACK_DIRECTORY.mkdir(parents=True, exist_ok=True)
 
-class FeedbackModel(BaseModel):
-    filename: str
-    drawing_types: list
+
+
+
+
+class Feedback(BaseModel):
+    detection_id: str
     is_correct: bool
 
-def map_drawing_types(drawing_types):
-    return [class_name_map[int(drawing_type)] for drawing_type in drawing_types]
 
-def extract_metadata(image, uploaded_file):
-    obj_det = ObjectDetectionHandler()
-    drawing_types, bbox, confidence=obj_det.run_detection(image)
 
-    drawing_types = map_drawing_types(drawing_types)
-    bbox =  [bbox_tensor.tolist() for bbox_tensor in bbox]
-    confidence = [conf.item() for conf in confidence]
-
-    return drawing_types,bbox, confidence
-
-def process_text_and_detection(detection, drawing_types, image):
+def get_text_detection(detection: Metadata, drawing_types, image):
     text = TextDetection()
     text.easy_ocr(image)
 
-    for dtype in drawing_types:
-            if dtype == DrawingType.FASADE:
-                # Find cardinal direction
-                cardinal_direction = text.get_cardinal_direction([cardinal_direction_pattern])
+    if DrawingType.FASADE in drawing_types:
+        cardinal_direction = text.get_cardinal_direction([cardinal_direction_pattern])
+        detection.cardinal_direction = cardinal_direction
 
-                detection.cardinal_direction = cardinal_direction
-               
+        if not cardinal_direction:
+            detection.detection_message= MESSAGES["NO_CARDINAL_DIRECTION"]
 
-            elif dtype == DrawingType.SITUASJONSKART:
+    elif DrawingType.SITUASJONSKART in drawing_types:
                 # Find scale
                 scale = text.get_scale([scale_pattern])
                 detection.scale = scale
-                
 
-            elif dtype == DrawingType.PLANTEGNING: # TODO: does not work as intended 
-                room_text_infos = text.get_room_names([room_pattern])
-                room_names = [text.text for text in room_text_infos]
-                detection.room_names = room_names
-                segmentation = SegmentationHandler()
+                if not scale:
+                    detection.detection_message = MESSAGES["NO_SCALE"]
+    
+    elif DrawingType.PLANTEGNING in drawing_types:
+        room_text_infos = text.get_room_names([room_pattern])
+        # Extract room names from the list of all detectec text
+        all_room_labels = [text.text for text in room_text_infos]
+        # Segment all rooms
+        segmentation = SegmentationHandler()
+
+        segmentation.run_segmentation(image)
+        labels_in_room_counter, total_rooms_detected, labels_in_room = segmentation.find_text_segments(room_text_infos)
+        print(f"Num of rooms contains room name: {labels_in_room_counter}, total rooms:{total_rooms_detected}")
+        print(f"Room names is inside a room {labels_in_room}")
         
-                segmentation.run_segmentation(image)
-                segmentation_results = segmentation.find_text_segments(room_text_infos)
-                true_count,false_count = segmentation.count_rooms()
-                detection.room_count = true_count + false_count
+        # Add to metadata
+        detection.room_names = all_room_labels           # all room names detected in drawinf
+        detection.room_count = total_rooms_detected # total rooms detected from segmentation
+        detection.rooms_with_label = labels_in_room # room names that is inside a room
 
+
+        if labels_in_room_counter == 0:
+            detection.detection_message = MESSAGES["NO_ROOM_NAMES"]
+                    
     return detection
 
 def detect_and_validate(image, uploaded_file):
-    
-    drawing_types, bbox, confidence = extract_metadata(image, uploaded_file)
+    detection_id = str(uuid4())
+    obj_det = ObjectDetectionHandler()
+    drawing_types, bbox, confidence = obj_det.run_detection(image)
+
     
     # Store object detection results in Metadata class. TODO: Write cleaner with fewer lines?
     detection = Metadata(
+        detection_id=detection_id,
         filename=uploaded_file.filename,
         drawing_types=drawing_types,
         bbox=bbox,
         confidence=confidence
 
     )
-    detection = process_text_and_detection(detection, drawing_types, image)
+    if set(drawing_types) & {DrawingType.FASADE, DrawingType.PLANTEGNING, DrawingType.SNITT, DrawingType.SITUASJONSKART}:
+        detection = get_text_detection(detection, drawing_types, image)
+        
+
+    #detection = process_text_and_detection(detection, drawing_types, image)
               
     return detection
 
@@ -119,8 +133,8 @@ def detect_and_validate(image, uploaded_file):
 async def health_check():
     return {"status": "ok"}
 
-def process_file(uploaded_file):
-    detection_response = []
+def process_file(uploaded_file: UploadFile) -> Optional[Metadata]:
+    #detection_response = []
     
     file_path = f"{UPLOAD_DIRECTORY}/{uploaded_file.filename}"
 
@@ -130,42 +144,69 @@ def process_file(uploaded_file):
     if uploaded_file.filename.lower().endswith('.pdf'):
         input_images = convert_from_path(file_path)
         for image in input_images:
-            detection_response.append(detect_and_validate(image, uploaded_file))
+            metadata = detect_and_validate(image, uploaded_file)
 
     elif uploaded_file.filename.lower().endswith(('.jpg', '.jpeg', '.png')):
         image = cv2.imread(file_path)
-        detection = (detect_and_validate(image, uploaded_file))
-        detection_response.append(detection)
+        metadata = detect_and_validate(image, uploaded_file)
+        #detection_response.append(detection)
+    else:
+        metadata = None
         
 
     os.remove(file_path)
-    if detection_response:
-        return detection_response[0]
     
-    return None
+    #if detection_response:
+    #    return detection_response[0]
 
-metadata_store = {}
-response_store = []
+    return metadata
+
+
+
+feedback_store = {}
 
 @app.post("/detect/")
 async def detect_objects(uploaded_files: List[UploadFile]):
 
     with ThreadPoolExecutor() as executor:
         metadata_results = list(executor.map(process_file, uploaded_files))
-        response = json_response_converter(metadata_results)
-        response_store.append(response)
-        
         for metadata in metadata_results:
-            if metadata:
-                metadata_store[metadata.filename] = metadata
+            feedback_store[metadata.detection_id] = metadata.model_dump()
+            print(feedback_store[metadata.detection_id])
         
-        return response
+        return metadata_results
+        
     
 
+def save_feedback_data(feedback_data: dict, filename):
+    if not FEEDBACK_DIRECTORY.exists():
+        FEEDBACK_DIRECTORY.mkdir(parents=True, exist_ok=True)
 
-@app.get("/feedbacks", response_model=list[Metadata])
-async def submit_feedback():
-    return response_store
+    #file_path = f"{FEEDBACK_DIRECTORY}/{filename}.json"
+    file_path = FEEDBACK_DIRECTORY / f"{filename}.json"
+    with open(file_path, "w") as json_file:
+        json.dump(feedback_data, json_file, indent=4)
+    
+    print(f"Feedback saved to {file_path}")
+
+@app.post("/feedback")
+async def submit_feedback(detection_id: str = Query(...), is_detection_correct: bool = Form(...)):
+    # detection id as a query parameter
+    
+    metadata = feedback_store[detection_id]
+    print(metadata)
+    filename = metadata["filename"]
+
+    feedback_data = {
+        "metadata":metadata,
+        "is_detection_correct": is_detection_correct
+    }
+
+
+    save_feedback_data(feedback_data, filename)
+
+
+    return {"message": "Feedback recieved", "filename": filename, "Detection correct": is_detection_correct, "Feedback metadata": feedback_store}
 
 
 # Add a new endpoint to check the log file
