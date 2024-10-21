@@ -1,0 +1,54 @@
+name: cadaid-api-multicontainer
+apiVersion: '2021-10-01'
+location: westeurope
+properties:
+  containers:
+    - name: detect
+      properties:
+        image: cadaidregistry.azurecr.io/detect:latest
+        ports:
+          - port: 80
+        resources:
+          requests:
+            cpu: 2
+            memoryInGB: 4
+        volumeMounts:
+          - name: shared-storage
+            mountPath: /app/shared
+            subPath: shared
+    - name: feedback
+      properties:
+        image: cadaidregistry.azurecr.io/feedback:latest
+        ports:
+          - port: 80
+        resources:
+          requests:
+            cpu: 2
+            memoryInGB: 3
+        volumeMounts:
+          - name: shared-storage
+            mountPath: /app/shared
+            subPath: shared
+    - name: nginx
+      properties:
+        image: nginx:latest
+        ports:
+          - port: 80
+        volumeMounts:
+          - name: shared-storage
+            mountPath: /etc/nginx/nginx.conf
+            subPath: nginx/nginx.conf
+  osType: Linux
+  ipAddress:
+    type: Public
+    ports:
+      - protocol: tcp
+        port: 80
+    restartPolicy: Always
+  volumes:
+    - name: shared-storage
+      properties:
+        azureFile:
+          shareName: cadaidfileshare
+          storageAccountName: cadaidstorage3
+          storageAccountKey: gywV/46LJHrH4613cK5SMilu8cEEUpsJdAOJF2RTQlrPJV1p/L1OhLEiXySHE9UsSS15lf4x8zIF+AStxNx5aA==
