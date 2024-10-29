@@ -115,12 +115,17 @@ async def get_logs():
 @app.get("/health")
 async def health_check():
     try:
-        # Service checks
-        return {
-            "status": "healthy",
-            "timestamp": datetime.datetime.now().isoformat(),
-            "service": "feedback"
-        }
+        return JSONResponse(
+            content={
+                "status": "healthy",
+                "timestamp": datetime.datetime.now().isoformat(),
+                "service": "detect"
+            },
+            headers={
+                "Content-Type": "application/json",
+                "Content-Length": "100"  # Add explicit content length
+            }
+        )
     except Exception as e:
         logger.error(f"Health check failed: {str(e)}")
-        raise HTTPException(status_code=500, detail="Health check failed")
+        raise HTTPException(status_code=500, detail=str(e))

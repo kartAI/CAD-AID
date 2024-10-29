@@ -23,6 +23,7 @@ from shared.utils.regex_patterns import cardinal_direction_pattern, room_pattern
 from shared.utils.text_detection import TextDetection
 from shared.utils.json_response_converter import json_response_converter
 from shared.auth import get_api_key
+from fastapi import Response
 
 # Set up logging
 logger = cadaid_logger(__name__)
@@ -237,15 +238,20 @@ async def detect_objects(uploaded_files: List[UploadFile], api_key: str = Depend
 @app.get("/health")
 async def health_check():
     try:
-        # Service checks
-        return {
-            "status": "healthy",
-            "timestamp": datetime.datetime.now().isoformat(),
-            "service": "detect"
-        }
+        return JSONResponse(
+            content={
+                "status": "healthy",
+                "timestamp": datetime.datetime.now().isoformat(),
+                "service": "detect"
+            },
+            headers={
+                "Content-Type": "application/json",
+                "Content-Length": "100"  # Add explicit content length
+            }
+        )
     except Exception as e:
         logger.error(f"Health check failed: {str(e)}")
-        raise HTTPException(status_code=500, detail="Health check failed")
+        raise HTTPException(status_code=500, detail=str(e))
     
 @app.get("/logs/")
 async def get_logs():
