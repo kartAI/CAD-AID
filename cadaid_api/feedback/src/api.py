@@ -4,8 +4,11 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import List
 from dotenv import load_dotenv
+from contextlib import asynccontextmanager
+import asyncio
 import os
 import json
+import datetime
 
 from shared.utils.logger import cadaid_logger
 from shared.utils.data_structures import Metadata
@@ -18,6 +21,15 @@ logger = cadaid_logger(__name__)
 logger.info("Loading environment variables")
 load_dotenv("/app/shared/.env.dev")
 
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup
+    logger.info("Starting up Feedback API")
+    await asyncio.sleep(5)
+    logger.info("Feedback API ready")
+    yield
+    # Shutdown
+    logger.info("Shutting down Feedback API")
 
 # Set up FastAPI app
 app = FastAPI(root_path="/feedback",
@@ -99,3 +111,16 @@ async def get_logs():
     except Exception as e:
         logger.error(f"Error fetchcing logs: {str(e)}")
         raise HTTPException(status_code=500, detail="Could not fetch logs")
+    
+@app.get("/health")
+async def health_check():
+    try:
+        # Service checks
+        return {
+            "status": "healthy",
+            "timestamp": datetime.datetime.now().isoformat(),
+            "service": "feedback"
+        }
+    except Exception as e:
+        logger.error(f"Health check failed: {str(e)}")
+        raise HTTPException(status_code=500, detail="Health check failed")

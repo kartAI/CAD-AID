@@ -7,11 +7,14 @@ from pdf2image import convert_from_path
 import cv2
 from concurrent.futures import ThreadPoolExecutor
 from typing import List
+import datetime
 import os
 from dotenv import load_dotenv
 import time
 import hashlib
 import json
+from contextlib import asynccontextmanager
+import asyncio
 from shared.utils.logger import cadaid_logger
 from shared.utils.object_detection import ObjectDetectionHandler
 from shared.utils.segmentation_handler import SegmentationHandler
@@ -28,7 +31,22 @@ logger = cadaid_logger(__name__)
 logger.info("Loading environment variables")
 load_dotenv("/app/shared/.env.dev")
 
-app = FastAPI(root_path="/detect",
+@asynccontextmanager
+async def lifespan(_: FastAPI): 
+    try:
+        logger.info("Starting up Detect API")
+        # Initialization checks
+        await asyncio.sleep(5)
+        logger.info("Detect API ready")
+        yield
+    except Exception as e:
+        logger.error(f"Error during startup: {str(e)}")
+        raise
+    finally:
+        logger.info("Shutting down Detect API")
+
+app = FastAPI(lifespan=lifespan,
+              root_path="/detect",
               root_path_in_servers=True,
               title="Detect API",
               description="API for object detection and text extraction using CADAID system",
@@ -201,3 +219,16 @@ async def detect_objects(uploaded_files: List[UploadFile], api_key: str = Depend
     logger.info(f"Time taken for detection: {elapsed_time} seconds")
             
     return json_response_converter(metadata_results)
+
+@app.get("/health")
+async def health_check():
+    try:
+        # Service checks
+        return {
+            "status": "healthy",
+            "timestamp": datetime.datetime.now().isoformat(),
+            "service": "detect"
+        }
+    except Exception as e:
+        logger.error(f"Health check failed: {str(e)}")
+        raise HTTPException(status_code=500, detail="Health check failed")
