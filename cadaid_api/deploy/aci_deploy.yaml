@@ -20,22 +20,21 @@ properties:
           httpget:
             path: /health
             port: 8000
-          initialDelaySeconds: 30
+          initialDelaySeconds: 60
           periodSeconds: 30
-          timeoutSeconds: 5
+          timeoutSeconds: 30
           successThreshold: 1
-          failureThreshold: 3
+          failureThreshold: 5
         readinessProbe:
           httpget:
             path: /health
             port: 8000
-          initialDelaySeconds: 30
+          initialDelaySeconds: 60
           periodSeconds: 30
-          timeoutSeconds: 5
+          timeoutSeconds: 30
         environmentVariables:
           - name: STATIC_API_KEY
             secureValue: '{{STATIC_API_KEY}}'
-        restartPolicy: Always
     - name: feedback
       properties:
         image: cadaidregistry.azurecr.io/feedback:latest
@@ -67,7 +66,6 @@ properties:
         environmentVariables:
           - name: STATIC_API_KEY
             secureValue: '{{STATIC_API_KEY}}'
-        restartPolicy: Always
     - name: nginx
       properties:
         image: cadaidregistry.azurecr.io/nginx:latest
@@ -89,7 +87,6 @@ properties:
           timeoutSeconds: 5
           successThreshold: 1
           failureThreshold: 3
-        restartPolicy: Always
   osType: Linux
   ipAddress:
     type: Public

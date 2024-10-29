@@ -36,7 +36,7 @@ async def lifespan(_: FastAPI):
     try:
         logger.info("Starting up Detect API")
         # Initialization checks
-        await asyncio.sleep(5)
+        await asyncio.sleep(10)
         logger.info("Detect API ready")
         yield
     except Exception as e:
@@ -44,6 +44,14 @@ async def lifespan(_: FastAPI):
         raise
     finally:
         logger.info("Shutting down Detect API")
+        
+# Add middleware to handle keepalive connections
+@app.middleware("http")
+async def add_keepalive_header(request, call_next):
+    response = await call_next(request)
+    response.headers["Connection"] = "keep-alive"
+    response.headers["Keep-Alive"] = "timeout=300"
+    return response
 
 app = FastAPI(lifespan=lifespan,
               root_path="/detect",
@@ -209,16 +217,22 @@ max_workers = 6
 @app.post("/")
 async def detect_objects(uploaded_files: List[UploadFile], api_key: str = Depends(get_api_key)):
     start_time = time.time()
-    with ThreadPoolExecutor(max_workers=max_workers) as executor:
-        metadata_results = list(executor.map(detection_service.process_file, uploaded_files))
-        for metadata in metadata_results:
-            detection_service.metadata[metadata.filename] = metadata
+    logger.info(f"Starting detection for {len(uploaded_files)} files")
+    
+    try:
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            metadata_results = list(executor.map(detection_service.process_file, uploaded_files))
+            for metadata in metadata_results:
+                detection_service.metadata[metadata.filename] = metadata
 
-    end_time = time.time()
-    elapsed_time = end_time - start_time
-    logger.info(f"Time taken for detection: {elapsed_time} seconds")
-            
-    return json_response_converter(metadata_results)
+        end_time = time.time()
+        elapsed_time = end_time - start_time
+        logger.info(f"Detection completed in {elapsed_time} seconds")
+        
+        return json_response_converter(metadata_results)
+    except Exception as e:
+        logger.error(f"Error during detection: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/health")
 async def health_check():
@@ -232,3 +246,13 @@ async def health_check():
     except Exception as e:
         logger.error(f"Health check failed: {str(e)}")
         raise HTTPException(status_code=500, detail="Health check failed")
+    
+@app.get("/logs/")
+async def get_logs():
+    try:
+        with open('/app/logs/app.log', 'r') as log_file:
+            logs = log_file.read()
+        return {"logs": logs}
+    except Exception as e:
+        logger.error(f"Error fetching logs: {str(e)}")
+        raise HTTPException(status_code=500, detail="Could not fetch logs")
