@@ -22,6 +22,12 @@ services:
               capabilities: [gpu]
     networks:
       - cadaid_network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
   feedback:
     build:
       context: .
@@ -38,6 +44,12 @@ services:
       - STATIC_API_KEY=${STATIC_API_KEY}
     networks:
       - cadaid_network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
 
   nginx:
     build:
@@ -47,12 +59,19 @@ services:
     ports:
       - "80:80"
     depends_on:
-      - detect
-      - feedback
+      detect:
+        condition: service_healthy
+      feedback:
+        condition: service_healthy
     environment:
       - STATIC_API_KEY=${STATIC_API_KEY}
     networks:
       - cadaid_network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
 
 networks:
   cadaid_network:
