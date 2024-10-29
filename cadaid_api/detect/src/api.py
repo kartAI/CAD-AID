@@ -1,5 +1,6 @@
 from fastapi import FastAPI, UploadFile, HTTPException, Depends, status, Security
 from fastapi.middleware.gzip import GZipMiddleware
+from fastapi.middleware.cors import CORSMiddleware
 from starlette.status import HTTP_403_FORBIDDEN
 from pathlib import Path
 from pdf2image import convert_from_path
@@ -28,6 +29,7 @@ logger.info("Loading environment variables")
 load_dotenv("/app/shared/.env.dev")
 
 app = FastAPI(root_path="/detect",
+              root_path_in_servers=True,
               title="Detect API",
               description="API for object detection and text extraction using CADAID system",
               version="1.0.0",
@@ -43,6 +45,16 @@ app = FastAPI(root_path="/detect",
             )
 
 
+# Add CORS middleware to allow cross-origin requests
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Add GZip middleware to compress responses
 app.add_middleware(GZipMiddleware, minimum_size=1000)
 
 UPLOAD_DIRECTORY = Path("/app/static/uploads")

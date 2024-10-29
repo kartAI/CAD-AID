@@ -3,6 +3,7 @@ FROM python:3.9-slim
 # Set environment variables to prevent Python from writing .pyc file
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
+ENV PYTHONPATH=/app:/app/shared
 
 # Install system dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -30,7 +31,7 @@ RUN pip install --upgrade pip && \
 COPY feedback/src /app/src
 
 # Expose port for the API
-EXPOSE 80
+EXPOSE 8001
 
 # Command to run the application with uvicorn
-CMD ["uvicorn", "src.api:app", "--host", "0.0.0.0", "--port", "80", "--log-level", "debug", "--reload"]
+CMD ["uvicorn", "src.api:app", "--host", "0.0.0.0", "--port", "8001", "--log-level", "debug"]

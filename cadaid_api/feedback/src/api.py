@@ -1,6 +1,6 @@
 from fastapi import FastAPI, HTTPException, Form, Depends, status, Security
 from fastapi.security.api_key import APIKeyHeader
-
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import List
 from dotenv import load_dotenv
@@ -21,6 +21,7 @@ load_dotenv("/app/shared/.env.dev")
 
 # Set up FastAPI app
 app = FastAPI(root_path="/feedback",
+              root_path_in_servers=True,
               title="Feedback API",
               description="API for feedback submission using CADAID system",
               version="1.0.0",
@@ -34,6 +35,15 @@ app = FastAPI(root_path="/feedback",
                   "apiKeyName": "X-API-Key"
               }
         )
+
+# Add CORS middleware to allow cross-origin requests
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 FEEDBACK_DIRECTORY = "feedback"
 os.makedirs(FEEDBACK_DIRECTORY, exist_ok=True)

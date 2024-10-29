@@ -3,6 +3,7 @@ FROM nvidia/cuda:12.3.2-cudnn9-runtime-ubuntu22.04
 # Set environment variables to prevent Python from writing pyc files
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
+ENV PYTHONPATH=/app:/app/shared
 
 # Install system dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -43,7 +44,7 @@ RUN pip install torch torchvision torchaudio --index-url https://download.pytorc
 COPY detect/src /app/src
 
 # Expose port for the API
-EXPOSE 80
+EXPOSE 8000
 
 # Command to run the application with uvicorn
-CMD ["python", "-m", "uvicorn", "src.api:app", "--host", "0.0.0.0", "--port", "80", "--log-level", "debug", "--reload"]
+CMD ["python", "-m", "uvicorn", "src.api:app", "--host", "0.0.0.0", "--port", "8000", "--log-level", "debug"]

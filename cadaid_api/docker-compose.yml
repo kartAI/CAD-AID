@@ -3,13 +3,15 @@ services:
     build:
       context: .
       dockerfile: detect/Dockerfile
+    image: cadaidregistry.azurecr.io/detect:latest
     ports:
-      - "8000:80"
+      - "8000:8000"
     volumes:
       - ./shared:/app/shared
       - ./shared/static/uploads:/app/static/uploads
     environment:
-      - PYTHONPATH=/app
+      - LOG_LEVEL=debug
+      - PYTHONPATH=/app:/app/shared
       - STATIC_API_KEY=${STATIC_API_KEY}
     deploy:
       resources:
@@ -18,25 +20,40 @@ services:
             - driver: nvidia
               count: 1
               capabilities: [gpu]
+    networks:
+      - cadaid_network
   feedback:
     build:
       context: .
       dockerfile: feedback/Dockerfile
+    image: cadaidregistry.azurecr.io/feedback:latest
     ports:
-      - "8001:80"
+      - "8001:8001"
     volumes:
       - ./shared:/app/shared
       - ./shared/static/uploads:/app/static/uploads
     environment:
-      - PYTHONPATH=/app
+      - LOG_LEVEL=debug
+      - PYTHONPATH=/app:/app/shared
       - STATIC_API_KEY=${STATIC_API_KEY}
+    networks:
+      - cadaid_network
 
   nginx:
-    image: nginx:latest
+    build:
+      context: .
+      dockerfile: nginx/Dockerfile
+    image: cadaidregistry.azurecr.io/nginx:latest
     ports:
       - "80:80"
-    volumes:
-      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
     depends_on:
       - detect
       - feedback
+    environment:
+      - STATIC_API_KEY=${STATIC_API_KEY}
+    networks:
+      - cadaid_network
+
+networks:
+  cadaid_network:
+    driver: bridge
