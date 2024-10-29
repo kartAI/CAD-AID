@@ -9,11 +9,11 @@ import asyncio
 import os
 import json
 import datetime
-
+from sqlalchemy.orm import Session
 from shared.utils.logger import cadaid_logger
 from shared.utils.data_structures import Metadata
 from shared.auth import get_api_key
-
+from shared.db.db import get_session
 # Set up logger
 logger = cadaid_logger(__name__)
 
@@ -56,50 +56,24 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-FEEDBACK_DIRECTORY = "feedback"
-os.makedirs(FEEDBACK_DIRECTORY, exist_ok=True)
-
-class FeedbackModel(BaseModel):
+class Feedback(BaseModel):
     filename: str
-    user_response: str
-    drawing_type: List[str]
-    bbox: List[List[float]]
-    confidence: List[float]
-    cardinal_direction: str
-    scale: str
-    room_names: List[str]
+    is_correct: bool
 
-metadata_store = {}
 
-@app.post("/")
-async def feedback(
-    filename: str = Form(...),
-    user_response: str = Form(...),
-    api_key: APIKeyHeader = Depends(get_api_key)
-):
-    # Use the authentication function to validate the API key
-    if filename not in metadata_store:
+
+
+@app.post("/feedback")
+async def feedback(feedback: Feedback, session: Session = Depends(get_session)):
+    existing_metadata = session.query(Metadata).filter(Metadata.filename == feedback.filename).first()
+
+    if not existing_metadata:
         raise HTTPException(status_code=404, detail="Metadata not found")
+    existing_metadata.is_correct = feedback.is_correct 
+    session.commit()  
+
+    return {"message": "Feedback submitted", "filename": feedback.filename, "is_correct": feedback.is_correct}
     
-    metadata = metadata_store[filename]
-    
-    if user_response not in ['ja', 'nei']:
-        raise HTTPException(status_code=400, detail="Invalid user response")
-    
-    feedback_data = {
-        'filename': metadata.filename,
-        'user_response': user_response,
-        'drawing_type': metadata.drawing_types,
-        'bbox': metadata.bbox,
-        'confidence': metadata.confidence,
-    }
-    
-    feedback_file = os.path.join(FEEDBACK_DIRECTORY, f"{filename}_feedback.json")
-    with open(feedback_file, 'w') as f:
-        json.dump(feedback_data, f, indent=4)
-        
-    return {'message': 'Feedback admitted', 'feedback': feedback_data}
 
 # Endpoint to check log file
 @app.get("/logs/")
@@ -111,16 +85,3 @@ async def get_logs():
     except Exception as e:
         logger.error(f"Error fetchcing logs: {str(e)}")
         raise HTTPException(status_code=500, detail="Could not fetch logs")
-    
-@app.get("/health")
-async def health_check():
-    try:
-        # Service checks
-        return {
-            "status": "healthy",
-            "timestamp": datetime.datetime.now().isoformat(),
-            "service": "feedback"
-        }
-    except Exception as e:
-        logger.error(f"Health check failed: {str(e)}")
-        raise HTTPException(status_code=500, detail="Health check failed")

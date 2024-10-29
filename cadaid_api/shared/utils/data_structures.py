@@ -65,3 +65,8 @@ class DrawingType(Enum):
     SITUASJONSKART = 'situasjonskart'
     PLANTEGNING = 'plantegning'
     SNITT = 'snitt'
+
+@dataclass 
+class SegmentationData:
+    total_rooms_detected: Optional[int] = None
+    room_names_in_mask: Optional[List[str]] = None
