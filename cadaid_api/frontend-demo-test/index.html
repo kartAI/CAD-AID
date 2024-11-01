@@ -13,8 +13,43 @@
                 <button class="button" id="detectButton">Detect Drawings</button>
             </div>
 
-            <div id="loader" class="loader"></div>
-            <div id="results"></div>
+            <div id="loader" class="loader">
+                <div class="loader-spinner"></div>
+                <div class="loader-text">
+                    <p>Processing files...</p>
+                    <p id="processingStatus"></p>
+                    <div class="progress-bar">
+                        <div class="progress-fill"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="results">
+                <div class="file-viewer-container">
+                    <div class="file-list">
+                        <!-- File thumbnails will go here -->
+                    </div>
+                    <div class="viewer-controls">
+                        <div class="toggle-controls">
+                            <label>
+                                <input type="checkbox" id="toggleBboxes" checked>
+                                Show Bounding Boxes
+                            </label>
+                            <label>
+                                <input type="checkbox" id="toggleFields" checked>
+                                Show Fields
+                            </label>
+                        </div>
+                    </div>
+                    <div class="file-viewer">
+                        <canvas id="viewerCanvas"></canvas>
+                        <div class="detection-overlay"></div>
+                    </div>
+                    <div class="detection-details">
+                        <!-- Detection details will go here -->
+                    </div>
+                </div>
+            </div>
         </div>
 
         <script src="script.js"></script>

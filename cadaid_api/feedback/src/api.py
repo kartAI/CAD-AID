@@ -2,7 +2,7 @@ from fastapi import FastAPI, HTTPException, Form, Depends, status, Security
 from fastapi.security.api_key import APIKeyHeader
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from typing import List
+from typing import List, Optional
 from dotenv import load_dotenv
 from contextlib import asynccontextmanager
 import asyncio
@@ -75,9 +75,10 @@ class FeedbackModel(BaseModel):
     drawing_type: List[str]
     bbox: List[List[float]]
     confidence: List[float]
-    cardinal_direction: str
-    scale: str
-    room_names: List[str]
+    cardinal_direction: Optional[str]
+    scale: Optional[str]
+    room_names: Optional[List[dict]]
+    gnr_bnr: Optional[str]
 
 metadata_store = {}
 
@@ -87,7 +88,6 @@ async def feedback(
     user_response: str = Form(...),
     api_key: APIKeyHeader = Depends(get_api_key)
 ):
-    # Use the authentication function to validate the API key
     if filename not in metadata_store:
         raise HTTPException(status_code=404, detail="Metadata not found")
     
@@ -102,6 +102,11 @@ async def feedback(
         'drawing_type': metadata.drawing_types,
         'bbox': metadata.bbox,
         'confidence': metadata.confidence,
+        'cardinal_direction': metadata.cardinal_direction,
+        'scale': metadata.scale,
+        'room_names': metadata.room_names,
+        'gnr_bnr': metadata.gnr_bnr,
+        'timestamp': datetime.datetime.now().isoformat()
     }
     
     feedback_file = os.path.join(FEEDBACK_DIRECTORY, f"{filename}_feedback.json")

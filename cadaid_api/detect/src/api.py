@@ -13,17 +13,25 @@ from dotenv import load_dotenv
 import time
 import hashlib
 import json
+import re
 from contextlib import asynccontextmanager
 import asyncio
 from shared.utils.logger import cadaid_logger
 from shared.utils.object_detection import ObjectDetectionHandler
 from shared.utils.segmentation_handler import SegmentationHandler
-from shared.utils.data_structures import Metadata, DrawingType
-from shared.utils.regex_patterns import cardinal_direction_pattern, room_pattern, scale_pattern
+from shared.utils.data_structures import Metadata, DrawingType, DrawingInstance
+from shared.utils.regex_patterns import (
+    scale_pattern,
+    cardinal_direction_pattern,
+    room_pattern,
+    gnr_bnr_pattern
+)
 from shared.utils.text_detection import TextDetection
 from shared.utils.json_response_converter import json_response_converter
 from shared.auth import get_api_key
 from fastapi.responses import JSONResponse
+import tempfile
+from PIL import Image
 
 # Set up logging
 logger = cadaid_logger(__name__)
@@ -95,6 +103,10 @@ def compute_file_hash(file_path):
         hasher.update(buf)
     return hasher.hexdigest()
 
+class DetectionError(Exception):
+    """Custom exception for detection errors"""
+    pass
+
 class DetectionService:
     def __init__(self):
         self.metadata = {}
@@ -109,7 +121,7 @@ class DetectionService:
         
         # Return lists of tensors
         inference_start = time.time()
-        drawing_types, bbox, confidence = obj_det.run_detection(image)
+        drawing_types, bboxes, confidences = obj_det.run_detection(image)
         inference_end = time.time()
 
         # Mapping class indices to labels using DrawingType enum
@@ -120,64 +132,60 @@ class DetectionService:
             3: DrawingType.SNITT
         }
         
-        # Map class indices to labels using DrawingType enum
-        postprocess_start = time.time()
-        drawing_types = [drawing_type_map.get(int(drawing_type), "unknown").name.lower() for drawing_type in drawing_types]
-        bbox = [bbox_tensor.tolist() for bbox_tensor in bbox]
-        confidence = [conf.item() for conf in confidence]
-        postprocess_end = time.time()
-        
-        total_time = time.time() - start_time
-        
-        # Log metrics to a file
-        with open("file_processing_metrics.txt", "a") as f:
-            f.write(f"File: {uploaded_file.filename}, Image Size: {image.size}, "
-                    f"Total Time: {total_time} s, Preprocessing: {preprocess_end - preprocess_start} s, "
-                    f"Inference: {inference_end - inference_start} s, Postprocessing: {postprocess_end - postprocess_start} s\n")
-        
-        logger.info(f"Detected results for {uploaded_file.filename}: {drawing_types}, {bbox}, {confidence}")
-        
-        # Store object detection results in Metadata class
-        detection = Metadata(
-            filename=uploaded_file.filename,
-            drawing_types=drawing_types,
-            bbox=bbox,
-            confidence=confidence,
-            cardinal_direction=None,
-            scale=None,
-            room_names=None
-        )
-        
+        # Create list of DrawingInstance objects
+        detections = []
         text = TextDetection()
         text.easy_ocr(image)
-        
-        for dtype in drawing_types:
-            if dtype == DrawingType.FASADE.name.lower():
-                # Find cardinal direction
-                cardinal_direction = text.get_cardinal_direction([cardinal_direction_pattern])
-                detection.cardinal_direction = cardinal_direction
+
+        for drawing_type, bbox, conf in zip(drawing_types, bboxes, confidences):
+            dtype = drawing_type_map.get(int(drawing_type), "unknown").name.lower()
+            
+            instance = DrawingInstance(
+                drawing_type=dtype,
+                bbox=bbox.tolist(),
+                confidence=conf.item()
+            )
+
+            # Process type-specific fields for this instance
+            if dtype in [DrawingType.FASADE.name.lower(), DrawingType.SITUASJONSKART.name.lower()]:
+                # Find cardinal direction and scale for this specific region
+                instance.cardinal_direction = text.get_cardinal_direction_in_region([cardinal_direction_pattern], bbox)
+                instance.scale = text.get_scale_in_region([scale_pattern], bbox)
+                instance.gnr_bnr = text.get_gnr_bnr_in_region([gnr_bnr_pattern], bbox)
                 
-            elif dtype == DrawingType.SITUASJONSKART.name.lower():
-                # Find scale
-                scale = text.get_scale([scale_pattern])
-                detection.scale = scale
+            elif dtype == DrawingType.SNITT.name.lower():
+                instance.scale = text.get_scale_in_region([scale_pattern], bbox)
                 
             elif dtype == DrawingType.PLANTEGNING.name.lower():
                 try:
-                    room_text_infos = text.get_room_names([room_pattern])
-                    room_names = [text.text for text in room_text_infos]
-                    detection.room_names = room_names
+                    instance.scale = text.get_scale_in_region([scale_pattern], bbox)
+                    instance.gnr_bnr = text.get_gnr_bnr_in_region([gnr_bnr_pattern], bbox)
                     
-                    segmentation = SegmentationHandler()
-                    segmentation.run_segmentation(image)
-                    segmentation_results = segmentation.find_text_segments(room_text_infos)
-                    
-                    segmentation_data = segmentation_results
+                    # Find room names and sizes within this region
+                    room_text_infos = text.get_room_names_in_region([room_pattern], bbox)
+                    room_names = []
+                    for text_info in room_text_infos:
+                        room_text = text_info.text
+                        size_match = re.search(r'(\d+(?:[.,]\d+)?)\s*m²', room_text)
+                        size = float(size_match.group(1).replace(',', '.')) if size_match else None
+                        name = re.sub(r'\s*\d+(?:[.,]\d+)?\s*m²', '', room_text).strip()
+                        room_names.append({"name": name, "size": size})
+                    instance.room_names = room_names
                     
                 except Exception as e:
-                    logger.error(f"Error processing plantegning: {str(e)}")
-                    
-        return detection
+                    logger.error(f"Error processing plantegning instance: {str(e)}")
+
+            detections.append(instance)
+
+        # Log metrics after processing all instances
+        total_time = time.time() - start_time
+        logger.info(f"Processed {len(detections)} detections for {uploaded_file.filename} in {total_time:.2f}s")
+        logger.info(f"Times - Preprocess: {preprocess_end - preprocess_start:.2f}s, Inference: {inference_end - inference_start:.2f}s")
+
+        return Metadata(
+            filename=uploaded_file.filename,
+            detections=detections
+        )
     
     def process_file(self, uploaded_file):
         if not uploaded_file or not uploaded_file.filename:
@@ -186,7 +194,6 @@ class DetectionService:
         
         detection_response = []
         file_path = f"{UPLOAD_DIRECTORY}/{uploaded_file.filename}"
-
 
         try:
             with open(file_path, "wb") as file_object:
@@ -204,14 +211,19 @@ class DetectionService:
                 logger.debug(f"Processing PDF file '{uploaded_file.filename}'")
                 input_images = convert_from_path(file_path)
                 for image in input_images:
-                    detection_response.append(self.detect_and_validate(image, uploaded_file))
+                    detection = self.detect_and_validate(image, uploaded_file)
+                    if not detection:
+                        raise DetectionError(f"Detection failed for page in {uploaded_file.filename}")
+                    detection_response.append(detection)
                     
             elif uploaded_file.filename.lower().endswith(('.jpg', '.jpeg', '.png')):
                 logger.debug(f"Processing image file '{uploaded_file.filename}'")
                 image = cv2.imread(file_path)
                 if image is None:
-                    raise ValueError(f"Could not read image file '{uploaded_file.filename}'")
+                    raise DetectionError(f"Could not read image file '{uploaded_file.filename}'")
                 detection = self.detect_and_validate(image, uploaded_file)
+                if not detection:
+                    raise DetectionError(f"Detection failed for {uploaded_file.filename}")
                 detection_response.append(detection)
             else:
                 raise ValueError(f"Unsupported file format: {uploaded_file.filename}")
@@ -221,6 +233,9 @@ class DetectionService:
                 self.cache[file_hash] = detection_response
                 logger.debug(f"Cached results for file '{uploaded_file.filename}'")
 
+        except DetectionError as de:
+            logger.error(str(de))
+            return None
         except Exception as e:
             logger.error(f"Error processing file '{uploaded_file.filename}': {str(e)}")
             return None
@@ -233,7 +248,6 @@ class DetectionService:
                 except Exception as e:
                     logger.error(f"Error removing file '{file_path}': {str(e)}")
 
-        
         if len(detection_response) > 0:
             return detection_response[0]
         return Metadata()

@@ -72,6 +72,40 @@ class TextDetection():
         """
         return self.get_target_text(patterns)
 
+    def get_text_in_region(self, patterns: List[str], bbox: List[float]) -> List[TextInfo]:
+        """Search for text patterns only within a specific bounding box region"""
+        region_text = []
+        for text_info in self.detected_text:
+            text_bbox = text_info.bbox
+            # Check if text center point is within detection bbox
+            text_center_x = (text_bbox[0][0] + text_bbox[2][0]) / 2
+            text_center_y = (text_bbox[0][1] + text_bbox[2][1]) / 2
+            
+            if (bbox[0] <= text_center_x <= bbox[2] and 
+                bbox[1] <= text_center_y <= bbox[3]):
+                for pattern in patterns:
+                    if re.search(pattern, text_info.text, re.IGNORECASE):
+                        region_text.append(text_info)
+                        break
+        return region_text
+
+    def get_cardinal_direction_in_region(self, patterns: List[str], bbox: List[float]) -> Optional[str]:
+        text_infos = self.get_text_in_region(patterns, bbox)
+        return text_infos[0].text if text_infos else None
+
+    def get_scale_in_region(self, patterns: List[str], bbox: List[float]) -> Optional[str]:
+        text_infos = self.get_text_in_region(patterns, bbox)
+        return text_infos[0].text if text_infos else None
+
+    def get_room_names_in_region(self, patterns: List[str], bbox: List[float]) -> List[TextInfo]:
+        """
+        Args:
+            patterns: List of room patterns to search for in the detected text.
+        Returns:
+            List of TextInfo objects containing the room
+        """
+        return self.get_text_in_region(patterns, bbox)
+
         
 		
 

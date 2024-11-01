@@ -1,8 +1,9 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import List
 from shapely.geometry import Polygon
 from typing import List, Optional
 from enum import Enum
+from datetime import datetime
 
 
 
@@ -17,36 +18,52 @@ class PolygonInfo:
     room: bool
     polygon: Polygon
 
+@dataclass
+class DrawingInstance:
+    drawing_type: str
+    bbox: List[float]
+    confidence: float
+    cardinal_direction: Optional[str] = None
+    scale: Optional[str] = None
+    room_names: Optional[List[dict]] = None
+    gnr_bnr: Optional[str] = None
 
-class Metadata:
-    def __init__(self,
-    filename: str = None,
-    drawing_types: Optional[List[str]] = None,
-    bbox: Optional[List[float]] = None,
-    confidence: Optional[List[float]] = None,
-    cardinal_direction: Optional[List[str]] = None,
-    scale: Optional[str] = None,
-    room_names: Optional[List[str]]= None,
-    store: Optional[dict] = None):
-
-        self.filename = filename
-        self.drawing_types = drawing_types
-        self.bbox = bbox
-        self.confidence = confidence
-        self.cardinal_direction = cardinal_direction
-        self.scale = scale
-        self.room_names = room_names
-        self.store = store or {}
-    
     def convert_to_dict(self):
         return {
-            'filename': self.filename,
-            'drawing_types': self.drawing_types,
+            'drawing_type': self.drawing_type,
             'bbox': self.bbox,
             'confidence': self.confidence,
             'cardinal_direction': self.cardinal_direction,
             'scale': self.scale,
             'room_names': self.room_names,
+            'gnr_bnr': self.gnr_bnr
+        }
+
+@dataclass
+class Metadata:
+    def __init__(self,
+        filename: str = None,
+        detections: List[DrawingInstance] = None,
+        store: Optional[dict] = None
+    ):
+        self.filename = filename
+        self.detections = detections or []
+        self.store = store or {}
+    
+    def convert_to_dict(self):
+        return {
+            'filename': self.filename,
+            'detections': [
+                {
+                    'drawing_type': det.drawing_type,
+                    'bbox': det.bbox,
+                    'confidence': det.confidence,
+                    'cardinal_direction': det.cardinal_direction,
+                    'scale': det.scale,
+                    'room_names': det.room_names,
+                    'gnr_bnr': det.gnr_bnr
+                } for det in self.detections
+            ],
             'store': self.store
         }
 
@@ -65,3 +82,24 @@ class DrawingType(Enum):
     SITUASJONSKART = 'situasjonskart'
     PLANTEGNING = 'plantegning'
     SNITT = 'snitt'
+
+@dataclass
+class FeedbackData:
+    filename: str
+    user_response: str
+    original_detection: DrawingInstance
+    corrected_detection: Optional[DrawingInstance] = None
+    correction_type: Optional[str] = None  # e.g., "wrong_type", "missed_field", "wrong_field"
+    correction_notes: Optional[str] = None
+    timestamp: datetime = field(default_factory=datetime.now)
+
+    def to_dict(self):
+        return {
+            'filename': self.filename,
+            'user_response': self.user_response,
+            'original_detection': self.original_detection.convert_to_dict(),
+            'corrected_detection': self.corrected_detection.convert_to_dict() if self.corrected_detection else None,
+            'correction_type': self.correction_type,
+            'correction_notes': self.correction_notes,
+            'timestamp': self.timestamp.isoformat()
+        }
