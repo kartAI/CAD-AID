@@ -9,6 +9,7 @@ import asyncio
 import os
 import json
 import datetime
+from fastapi.responses import JSONResponse
 
 from shared.utils.logger import cadaid_logger
 from shared.utils.data_structures import Metadata
@@ -22,7 +23,7 @@ logger.info("Loading environment variables")
 load_dotenv("/app/shared/.env.dev")
 
 @asynccontextmanager
-async def lifespan(app: FastAPI):
+async def lifespan(_: FastAPI):
     # Startup
     logger.info("Starting up Feedback API")
     await asyncio.sleep(5)
@@ -47,6 +48,14 @@ app = FastAPI(root_path="/feedback",
                   "apiKeyName": "X-API-Key"
               }
         )
+
+# Add middleware to handle keepalive connections
+@app.middleware("http")
+async def add_keepalive_header(request, call_next):
+    response = await call_next(request)
+    response.headers["Connection"] = "keep-alive"
+    response.headers["Keep-Alive"] = "timeout=300"
+    return response
 
 # Add CORS middleware to allow cross-origin requests
 app.add_middleware(
@@ -107,7 +116,12 @@ async def get_logs():
     try:
         with open('/app/logs/app.log', 'r') as log_file:
             logs = log_file.read()
-        return {"logs": logs}
+        return JSONResponse(
+            content={"logs": logs},
+            headers={
+                "Content-Type": "application/json",
+            }
+        )
     except Exception as e:
         logger.error(f"Error fetchcing logs: {str(e)}")
         raise HTTPException(status_code=500, detail="Could not fetch logs")
@@ -119,11 +133,10 @@ async def health_check():
             content={
                 "status": "healthy",
                 "timestamp": datetime.datetime.now().isoformat(),
-                "service": "detect"
+                "service": "feedback"
             },
             headers={
                 "Content-Type": "application/json",
-                "Content-Length": "100"  # Add explicit content length
             }
         )
     except Exception as e:

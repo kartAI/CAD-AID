@@ -13,6 +13,25 @@ properties:
           requests:
             cpu: 2
             memoryInGB: 4
+          limits:
+            cpu: 4
+            memoryInGB: 8
+        livenessProbe:
+          httpget:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 120
+          periodSeconds: 60
+          timeoutSeconds: 60
+          successThreshold: 1
+          failureThreshold: 10
+        readinessProbe:
+          httpget:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 120
+          periodSeconds: 60
+          timeoutSeconds: 60
         environmentVariables:
           - name: STATIC_API_KEY
             secureValue: 'yx9D8EfFrMMXRjilmgvZP6P6pAIo8R2o7f_XZGzS614'
@@ -25,6 +44,25 @@ properties:
           requests:
             cpu: 1.5
             memoryInGB: 3
+          limits:
+            cpu: 3
+            memoryInGB: 6
+        livenessProbe:
+          httpget:
+            path: /health
+            port: 8001
+          initialDelaySeconds: 120
+          periodSeconds: 60
+          timeoutSeconds: 60
+          successThreshold: 1
+          failureThreshold: 10
+        readinessProbe:
+          httpget:
+            path: /health
+            port: 8001
+          initialDelaySeconds: 120
+          periodSeconds: 60
+          timeoutSeconds: 60
         environmentVariables:
           - name: STATIC_API_KEY
             secureValue: 'yx9D8EfFrMMXRjilmgvZP6P6pAIo8R2o7f_XZGzS614'
@@ -37,6 +75,18 @@ properties:
           requests:
             cpu: 0.5
             memoryInGB: 1
+          limits:
+            cpu: 1
+            memoryInGB: 2
+        livenessProbe:
+          httpget:
+            path: /detect/health
+            port: 80
+          initialDelaySeconds: 30
+          periodSeconds: 30
+          timeoutSeconds: 5
+          successThreshold: 1
+          failureThreshold: 3
   osType: Linux
   ipAddress:
     type: Public

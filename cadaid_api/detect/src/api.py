@@ -23,7 +23,7 @@ from shared.utils.regex_patterns import cardinal_direction_pattern, room_pattern
 from shared.utils.text_detection import TextDetection
 from shared.utils.json_response_converter import json_response_converter
 from shared.auth import get_api_key
-from fastapi import Response
+from fastapi.responses import JSONResponse
 
 # Set up logging
 logger = cadaid_logger(__name__)
@@ -45,14 +45,7 @@ async def lifespan(_: FastAPI):
         raise
     finally:
         logger.info("Shutting down Detect API")
-        
-# Add middleware to handle keepalive connections
-@app.middleware("http")
-async def add_keepalive_header(request, call_next):
-    response = await call_next(request)
-    response.headers["Connection"] = "keep-alive"
-    response.headers["Keep-Alive"] = "timeout=300"
-    return response
+    
 
 app = FastAPI(lifespan=lifespan,
               root_path="/detect",
@@ -71,6 +64,14 @@ app = FastAPI(lifespan=lifespan,
               }
             )
 
+
+# Add middleware to handle keepalive connections
+@app.middleware("http")
+async def add_keepalive_header(request, call_next):
+    response = await call_next(request)
+    response.headers["Connection"] = "keep-alive"
+    response.headers["Keep-Alive"] = "timeout=300"
+    return response
 
 # Add CORS middleware to allow cross-origin requests
 app.add_middleware(
@@ -179,33 +180,59 @@ class DetectionService:
         return detection
     
     def process_file(self, uploaded_file):
+        if not uploaded_file or not uploaded_file.filename:
+            logger.error("File missing filename")
+            return None
+        
         detection_response = []
-        
         file_path = f"{UPLOAD_DIRECTORY}/{uploaded_file.filename}"
-        
-        with open(file_path, "wb") as file_object:
-            file_object.write(uploaded_file.file.read())
 
-        # Compute the file hash to check if the file has been processed before
-        file_hash = compute_file_hash(file_path)
-        if file_hash in self.cache:
-            logger.info(f"File '{uploaded_file.filename}' found in cache. Skipping processing.")
-            return self.cache[file_hash]
-        
-        # Process the file if not found in cache    
-        if uploaded_file.filename.endswith(".pdf"):
-            input_images = convert_from_path(file_path)
-            for image in input_images:
-                detection_response.append(self.detect_and_validate(image, uploaded_file))
-                
-        elif uploaded_file.filename.lower().endswith(('.jpg', '.jpeg', '.png')):
-            image = cv2.imread(file_path)
-            detection = self.detect_and_validate(image, uploaded_file)
-            detection_response.append(detection)
 
-        # Store the detection results in cache
-        self.cache[file_hash] = detection_response
-        os.remove(file_path)
+        try:
+            with open(file_path, "wb") as file_object:
+                file_object.write(uploaded_file.file.read())
+            logger.debug(f"File written to: {file_path}")
+
+            # Compute the file hash to check if the file has been processed before
+            file_hash = compute_file_hash(file_path)
+            if file_hash in self.cache:
+                logger.info(f"File '{uploaded_file.filename}' found in cache. Skipping processing.")
+                return self.cache[file_hash]
+            
+            # Process the file if not found in cache    
+            if uploaded_file.filename.endswith(".pdf"):
+                logger.debug(f"Processing PDF file '{uploaded_file.filename}'")
+                input_images = convert_from_path(file_path)
+                for image in input_images:
+                    detection_response.append(self.detect_and_validate(image, uploaded_file))
+                    
+            elif uploaded_file.filename.lower().endswith(('.jpg', '.jpeg', '.png')):
+                logger.debug(f"Processing image file '{uploaded_file.filename}'")
+                image = cv2.imread(file_path)
+                if image is None:
+                    raise ValueError(f"Could not read image file '{uploaded_file.filename}'")
+                detection = self.detect_and_validate(image, uploaded_file)
+                detection_response.append(detection)
+            else:
+                raise ValueError(f"Unsupported file format: {uploaded_file.filename}")
+
+            # Store the detection results in cache
+            if detection_response:
+                self.cache[file_hash] = detection_response
+                logger.debug(f"Cached results for file '{uploaded_file.filename}'")
+
+        except Exception as e:
+            logger.error(f"Error processing file '{uploaded_file.filename}': {str(e)}")
+            return None
+        finally:
+            # Clean up temporary file
+            if os.path.exists(file_path):
+                try:
+                    os.remove(file_path)
+                    logger.debug(f"Removed temporary file: {file_path}")
+                except Exception as e:
+                    logger.error(f"Error removing file '{file_path}': {str(e)}")
+
         
         if len(detection_response) > 0:
             return detection_response[0]
@@ -221,14 +248,29 @@ async def detect_objects(uploaded_files: List[UploadFile], api_key: str = Depend
     logger.info(f"Starting detection for {len(uploaded_files)} files")
     
     try:
+        if not uploaded_files:
+            raise HTTPException(status_code=400, detail="No files uploaded")
+        
+        # Debug logging
+        logger.debug(f"Received files: {[f.filename for f in uploaded_files]}")
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
-            metadata_results = list(executor.map(detection_service.process_file, uploaded_files))
-            for metadata in metadata_results:
-                detection_service.metadata[metadata.filename] = metadata
+            # Process each file individually
+            metadata_results = []
+            for uploaded_file in uploaded_files:
+                if not uploaded_file.filename:
+                    logger.error("File missing filename")
+                    continue
+                result = detection_service.process_file(uploaded_file)
+                if result:
+                    metadata_results.append(result)
+                    detection_service.metadata[result.filename] = result
 
         end_time = time.time()
         elapsed_time = end_time - start_time
         logger.info(f"Detection completed in {elapsed_time} seconds")
+
+        if not metadata_results:
+            raise HTTPException(status_code=400, detail="No valid results found")
         
         return json_response_converter(metadata_results)
     except Exception as e:
@@ -253,12 +295,18 @@ async def health_check():
         logger.error(f"Health check failed: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
     
+# Endpoint to check log file
 @app.get("/logs/")
 async def get_logs():
     try:
         with open('/app/logs/app.log', 'r') as log_file:
             logs = log_file.read()
-        return {"logs": logs}
+        return JSONResponse(
+            content={"logs": logs},
+            headers={
+                "Content-Type": "application/json",
+            }
+        )
     except Exception as e:
-        logger.error(f"Error fetching logs: {str(e)}")
+        logger.error(f"Error fetchcing logs: {str(e)}")
         raise HTTPException(status_code=500, detail="Could not fetch logs")
