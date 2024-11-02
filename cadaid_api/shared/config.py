@@ -16,4 +16,7 @@ class Config:
         self.SEGMENTATION_MODEL_NAME = os.getenv('SEGMENTATION_MODEL_NAME')
         self.SEGMENTATION_MODEL_PATH = os.getenv('SEGMENTATION_MODEL_PATH')
         self.SEGMENTATION_CONFIDENCE = float(os.getenv('SEGMENTATION_CONFIDENCE', 0.6))
+
+        # Configuration for pytesseract
+        PYTESSERACT_NUMBERS = r'--oem 3 --psm 11 -c tessedit_char_whitelist=0123456789.,m '
      

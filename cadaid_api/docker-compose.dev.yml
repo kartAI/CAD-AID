@@ -1,0 +1,39 @@
+services:
+  detect:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    #image: cadaidregistry.azurecr.io/detect:latest
+    #image: detect:latest
+    
+    volumes:
+      - ./detect/src:/app/detect/src # mount detect api code
+      - ./shared:/app/shared
+     # - ./shared/static/uploads:/app/static/uploads
+    environment:
+      - LOG_LEVEL=debug
+      - PYTHONPATH=/app
+    
+    command: uvicorn detect.src.api:app --host 0.0.0.0 --port 8000 --reload
+    ports:
+      - "8000:8000"
+      
+
+  feedback:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    #image: cadaidregistry.azurecr.io/feedback:latest
+    #image: feedback:latest
+    volumes:
+      - ./feedback/src:/app/feedback/src # mount detect api code
+      - ./shared:/app/shared
+     # - ./shared/static/uploads:/app/static/uploads
+    environment:
+      - LOG_LEVEL=debug
+      - PYTHONPATH=/app
+    
+    command: uvicorn feedback.src.api:app --host 0.0.0.0 --port 8001 --reload
+    ports:
+      - "8001:8001"
+    

@@ -20,3 +20,5 @@ pyjwt
 passlib[bcrypt]
 python-jose
 fastapi-security
+pytesseract
+httpx

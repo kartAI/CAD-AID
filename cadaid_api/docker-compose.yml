@@ -4,9 +4,11 @@ services:
       context: .
       dockerfile: detect/Dockerfile
     image: cadaidregistry.azurecr.io/detect:latest
+    #image: detect:latest
     ports:
       - "8000:8000"
     volumes:
+      - .:/app
       - ./shared:/app/shared
       - ./shared/static/uploads:/app/static/uploads
     environment:
@@ -33,9 +35,11 @@ services:
       context: .
       dockerfile: feedback/Dockerfile
     image: cadaidregistry.azurecr.io/feedback:latest
+    #image: feedback:latest
     ports:
       - "8001:8001"
     volumes:
+      - .:/app
       - ./shared:/app/shared
       - ./shared/static/uploads:/app/static/uploads
     environment:

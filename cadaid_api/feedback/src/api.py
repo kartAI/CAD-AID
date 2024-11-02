@@ -9,10 +9,13 @@ import asyncio
 import os
 import json
 import datetime
-
+import httpx
+from fastapi.responses import JSONResponse
 from shared.utils.logger import cadaid_logger
 from shared.utils.data_structures import Metadata
-from shared.auth import get_api_key
+#from shared.auth import get_api_key
+
+#from detect.src.api import get_detection_results
 
 # Set up logger
 logger = cadaid_logger(__name__)
@@ -43,9 +46,9 @@ app = FastAPI(root_path="/feedback",
                 "name": "Feedback",
                 "description": "API for feedback submission to further improve the CADAID system"
               }], 
-              swagger_ui_init_oauth={
-                  "apiKeyName": "X-API-Key"
-              }
+              #swagger_ui_init_oauth={
+                #  "apiKeyName": "X-API-Key"
+              #}
         )
 
 # Add CORS middleware to allow cross-origin requests
@@ -62,42 +65,45 @@ os.makedirs(FEEDBACK_DIRECTORY, exist_ok=True)
 
 class FeedbackModel(BaseModel):
     filename: str
-    user_response: str
-    drawing_type: List[str]
-    bbox: List[List[float]]
-    confidence: List[float]
-    cardinal_direction: str
-    scale: str
-    room_names: List[str]
+    user_response: bool
 
 metadata_store = {}
 
+async def fetch_detection_results(filename:str):
+    async with httpx.AsyncClient() as client:
+        response = await client.get("http://localhost:8000/detect/detection-results")
+        response.raise_for_status()
+
+        detection_results = response.json()
+        print(detection_results)
+        if isinstance(detection_results, dict):
+            detection_results = detection_results['results']
+        for item in detection_results:
+            if item['filename'] == filename:
+                return item
+    
+    return None
+
+
 @app.post("/")
-async def feedback(
+async def feedback(#feedback: FeedbackModel
     filename: str = Form(...),
-    user_response: str = Form(...),
-    api_key: APIKeyHeader = Depends(get_api_key)
+    user_response: bool = Form(...),
+    #api_key: APIKeyHeader = Depends(get_api_key)
 ):
-    # Use the authentication function to validate the API key
-    if filename not in metadata_store:
+    
+    metadata = await fetch_detection_results(filename)
+    if not metadata:
         raise HTTPException(status_code=404, detail="Metadata not found")
     
-    metadata = metadata_store[filename]
-    
-    if user_response not in ['ja', 'nei']:
-        raise HTTPException(status_code=400, detail="Invalid user response")
-    
+   
+
     feedback_data = {
-        'filename': metadata.filename,
+        'filename': filename,
         'user_response': user_response,
-        'drawing_type': metadata.drawing_types,
-        'bbox': metadata.bbox,
-        'confidence': metadata.confidence,
+        'metadata': metadata
     }
-    
-    feedback_file = os.path.join(FEEDBACK_DIRECTORY, f"{filename}_feedback.json")
-    with open(feedback_file, 'w') as f:
-        json.dump(feedback_data, f, indent=4)
+
         
     return {'message': 'Feedback admitted', 'feedback': feedback_data}
 
