@@ -43,6 +43,9 @@ COPY shared/ /app/shared
 # Create logs directory
 RUN mkdir -p /app/logs /app/temp_files /app/static/uploads
 
+# create feedback metadata directory
+RUN mkdir -p /app/metadata_files_store /app/
+
 
 # Expose port for the API
 EXPOSE 8000 8001

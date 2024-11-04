@@ -17,6 +17,8 @@ services:
     command: uvicorn detect.src.api:app --host 0.0.0.0 --port 8000 --reload
     ports:
       - "8000:8000"
+    networks:
+      - cadaid_network
       
 
   feedback:
@@ -28,6 +30,7 @@ services:
     volumes:
       - ./feedback/src:/app/feedback/src # mount detect api code
       - ./shared:/app/shared
+      - ./metadata_files_store:/app/metadata_files_store
      # - ./shared/static/uploads:/app/static/uploads
     environment:
       - LOG_LEVEL=debug
@@ -36,4 +39,14 @@ services:
     command: uvicorn feedback.src.api:app --host 0.0.0.0 --port 8001 --reload
     ports:
       - "8001:8001"
+    networks:
+      - cadaid_network
+    depends_on:
+      - detect
+
+networks:
+  cadaid_network:
+    driver: bridge
+
+
     
