@@ -43,6 +43,8 @@ COPY shared/ /app/shared
 # Create logs directory
 RUN mkdir -p /app/logs /app/temp_files /app/static/uploads
 
+# Temp upload directory
+RUN mkdir -p /app/upload_files /app/
 # create feedback metadata directory
 RUN mkdir -p /app/metadata_files_store /app/
 

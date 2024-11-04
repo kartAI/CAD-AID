@@ -9,6 +9,7 @@ services:
     volumes:
       - ./detect/src:/app/detect/src # mount detect api code
       - ./shared:/app/shared
+      - ./upload_files:/app/upload_files
      # - ./shared/static/uploads:/app/static/uploads
     environment:
       - LOG_LEVEL=debug
@@ -31,6 +32,7 @@ services:
       - ./feedback/src:/app/feedback/src # mount detect api code
       - ./shared:/app/shared
       - ./metadata_files_store:/app/metadata_files_store
+      - ./upload_files:/app/upload_files
      # - ./shared/static/uploads:/app/static/uploads
     environment:
       - LOG_LEVEL=debug

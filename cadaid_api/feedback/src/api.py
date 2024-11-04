@@ -7,15 +7,15 @@ from dotenv import load_dotenv
 from contextlib import asynccontextmanager
 import asyncio
 import os
+import shutil
+from typing import Optional
 import json
 import datetime
 import httpx
 from fastapi.responses import JSONResponse
 from shared.utils.logger import cadaid_logger
-from shared.utils.data_structures import Metadata
 #from shared.auth import get_api_key
 
-#from detect.src.api import get_detection_results
 
 # Set up logger
 logger = cadaid_logger(__name__)
@@ -67,23 +67,27 @@ class FeedbackModel(BaseModel):
     filename: str
     user_response: bool
 
-metadata_store = {}
 
 async def fetch_detection_results(filename:str):
+    """
+    Get metadata from detection endpoint
+    """
     async with httpx.AsyncClient() as client:
         url = "http://detect:8000/detect/detection-results"
         response = await client.get(url)
         response.raise_for_status()
 
         detection_results = response.json()
-        print(detection_results)
+      
         if isinstance(detection_results, dict):
-            detection_results = detection_results[filename]
+            detection_filepath = detection_results['filepath']
+            detection_results = detection_results['metadata'][filename]
         for item in detection_results:
             if detection_results[item] == filename:
-                return detection_results
-    
+                return {'filename': detection_results, 'filepath': detection_filepath}
+        
     return None
+
 
 
 @app.post("/")
@@ -93,22 +97,40 @@ async def feedback(#feedback: FeedbackModel
     #api_key: APIKeyHeader = Depends(get_api_key)
 ):
     
-    metadata = await fetch_detection_results(filename)
-    if not metadata:
+    detection_results = await fetch_detection_results(filename)
+    logger.info(f"Fetched detection response {detection_results}")
+    if not detection_results:
         raise HTTPException(status_code=404, detail="Metadata not found")
     
+    metadata = detection_results['filename']
+    upload_path = detection_results['filepath']
+
+    upload_file_path = f"{upload_path}/{filename}"
    
+    feedback_folder =os.path.join(FEEDBACK_DIRECTORY, filename)
+    os.makedirs(feedback_folder, exist_ok=True)
 
     feedback_data = {
-        'filename': filename,
         'user_response': user_response,
         'metadata': metadata
     }
 
-    feedback_file_path = os.path.join(FEEDBACK_DIRECTORY, f"{filename}_feedback_metadata.json")
+    feedback_file_path = os.path.join(feedback_folder, f"{filename}_feedback_metadata.json")
 
     with open(feedback_file_path, 'w') as f:
         json.dump(feedback_data, f, indent=4)
+    
+    saved_image_path = os.path.join(feedback_folder, os.path.basename(upload_file_path))
+    shutil.copy(upload_file_path, saved_image_path)
+
+    #clean up
+    if os.path.exists(upload_file_path):
+        try:
+            os.remove(upload_file_path)
+            logger.info(f"Removed temporary file: {upload_file_path}")
+
+        except Exception as e:
+            logger.error(f"Error removing file '{upload_file_path}': {str(e)}")
 
         
     return {'message': 'Feedback admitted', 'feedback': feedback_data}

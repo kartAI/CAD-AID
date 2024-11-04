@@ -1,0 +1,78 @@
+{
+    "filename": "Brenneveien446_snitt_page_1.jpg",
+    "user_response": true,
+    "metadata": {
+        "Brenneveien446_fasade2_page_1.jpg": {
+            "filename": "Brenneveien446_fasade2_page_1.jpg",
+            "detections": [
+                {
+                    "drawing_type": "fasade",
+                    "bbox": [
+                        1044.9549560546875,
+                        1498.326416015625,
+                        1728.33251953125,
+                        1906.0380859375
+                    ],
+                    "confidence": 0.945013701915741,
+                    "cardinal_direction": null,
+                    "scale": null,
+                    "room_names": null,
+                    "total_areal": null,
+                    "gnr_bnr": null
+                },
+                {
+                    "drawing_type": "fasade",
+                    "bbox": [
+                        914.20556640625,
+                        399.88470458984375,
+                        1750.2774658203125,
+                        826.9078979492188
+                    ],
+                    "confidence": 0.9098946452140808,
+                    "cardinal_direction": null,
+                    "scale": null,
+                    "room_names": null,
+                    "total_areal": null,
+                    "gnr_bnr": null
+                }
+            ],
+            "store": {}
+        },
+        "Brenneveien446_snitt_page_1.jpg": {
+            "filename": "Brenneveien446_snitt_page_1.jpg",
+            "detections": [
+                {
+                    "drawing_type": "snitt",
+                    "bbox": [
+                        926.9358520507812,
+                        383.992919921875,
+                        1787.06640625,
+                        851.90771484375
+                    ],
+                    "confidence": 0.8858336210250854,
+                    "cardinal_direction": null,
+                    "scale": null,
+                    "room_names": null,
+                    "total_areal": null,
+                    "gnr_bnr": null
+                },
+                {
+                    "drawing_type": "snitt",
+                    "bbox": [
+                        989.4047241210938,
+                        1474.5477294921875,
+                        1680.0152587890625,
+                        1954.8216552734375
+                    ],
+                    "confidence": 0.8306139707565308,
+                    "cardinal_direction": null,
+                    "scale": null,
+                    "room_names": null,
+                    "total_areal": null,
+                    "gnr_bnr": null
+                }
+            ],
+            "store": {}
+        }
+    }
+}

@@ -1,0 +1,43 @@
+{
+    "user_response": true,
+    "metadata": {
+        "filename": "Brunsbykollen9_plan_snitt_page_1.jpg",
+        "detections": [
+            {
+                "drawing_type": "plantegning",
+                "bbox": [
+                    299.8959655761719,
+                    224.50987243652344,
+                    1238.7889404296875,
+                    1187.5543212890625
+                ],
+                "confidence": 0.951851487159729,
+                "cardinal_direction": null,
+                "scale": null,
+                "room_names": [
+                    "kjokken/stue",
+                    "soverom",
+                    "bad"
+                ],
+                "total_areal": 71.0,
+                "gnr_bnr": null
+            },
+            {
+                "drawing_type": "snitt",
+                "bbox": [
+                    2185.182373046875,
+                    686.0330200195312,
+                    3142.412841796875,
+                    1364.7755126953125
+                ],
+                "confidence": 0.9211990237236023,
+                "cardinal_direction": null,
+                "scale": null,
+                "room_names": null,
+                "total_areal": null,
+                "gnr_bnr": null
+            }
+        ],
+        "store": {}
+    }
+}

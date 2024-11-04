@@ -94,8 +94,13 @@ app.add_middleware(
 # Add GZip middleware to compress responses
 app.add_middleware(GZipMiddleware, minimum_size=1000)
 
-UPLOAD_DIRECTORY = Path("/app/static/uploads")
-UPLOAD_DIRECTORY.mkdir(parents=True, exist_ok=True)
+#UPLOAD_DIRECTORY = Path("/app/static/uploads")
+#UPLOAD_DIRECTORY.mkdir(parents=True, exist_ok=True)
+
+UPLOAD_DIRECTORY = "/app/upload_files"
+os.makedirs(UPLOAD_DIRECTORY, exist_ok=True)
+
+
 
 def compute_file_hash(file_path):
     hasher = hashlib.sha256()
@@ -241,7 +246,7 @@ class DetectionService:
         if os.path.exists(file_path):
             try:
                 os.remove(file_path)
-                logger.debug(f"Removed temporary file: {file_path}")
+                logger.info(f"Removed temporary file: {file_path}")
 
             except Exception as e:
                 logger.error(f"Error removing file '{file_path}': {str(e)}")
@@ -251,7 +256,8 @@ class DetectionService:
 
         with open(file_path, "wb") as file_object:
                 file_object.write(uploaded_file.file.read())
-        logger.debug(f"File written to: {file_path}")
+
+        logger.info(f"File written to: {file_path}")
 
         return file_path
             
@@ -271,7 +277,7 @@ class DetectionService:
         if detection_response:
             self.cache[file_hash] = detection_response
         
-        self.clean_up_temp_file(file_path)
+        #self.clean_up_temp_file(file_path) # TODO: Clean up after a feedback is given/not given. Currently implemented in feedback api
 
         if len(detection_response)>0:
             return detection_response[0]
@@ -316,25 +322,22 @@ async def detect_objects(uploaded_files: List[UploadFile],
         if not metadata_results:
             raise HTTPException(status_code=400, detail="No valid results found")
         
+        uploaded_files = os.listdir(UPLOAD_DIRECTORY)
+        logger.info(f"Uploaded files detection: {uploaded_files}")
+
         return metadata_results
         #return json_response_converter(metadata_results)
     except Exception as e:
         logger.error(f"Error during detection: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.get("/detection-results/{filename}")
-async def get_detection_results(filename:str):
-    if filename in detection_service.metadata:
-
-        return detection_service.metadata[filename]
-    else:
-        raise HTTPException(status_code=404, detail="Metadata not found")
     
 @app.get("/detection-results")
 async def get_all_detection_results():
     if not detection_service.metadata:
         raise HTTPException(status_code=404, detail="No metadata found")
-    return detection_service.metadata
+    return {'metadata': detection_service.metadata,
+                'filepath': UPLOAD_DIRECTORY}
 
 @app.get("/health")
 async def health_check():
