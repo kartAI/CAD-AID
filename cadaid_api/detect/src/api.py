@@ -261,25 +261,28 @@ class DetectionService:
 
         return file_path
             
-    def process_file(self, uploaded_file: UploadFile) -> Metadata:
-        if not uploaded_file or not uploaded_file.filename:
-            logger.error("File missing filename")
-            return None
+    def process_file(self, uploaded_file):
+        file_path = os.path.join(UPLOAD_DIRECTORY, uploaded_file.filename)
         
-        file_path = self.save_uploaded_file(uploaded_file)
-        file_hash = compute_file_hash(file_path)
-
-        if file_hash in self.cache:
-            logger.info(f"File '{uploaded_file.filename}' found in cache. Skipping processing.")
-            return self.cache[file_hash]
+        # Write the file content
+        with open(file_path, "wb") as file_object:
+            file_object.write(uploaded_file.file.read())
         
+        # Generate hash from current file content instead of just filename
+        with open(file_path, "rb") as file_object:
+            file_content = file_object.read()
+            file_hash = hashlib.md5(file_content).hexdigest()
+        
+        # Process file even if in cache but compare results
         detection_response = self.process_file_type(uploaded_file, file_path)
+        
+        # Update cache with new results
         if detection_response:
             self.cache[file_hash] = detection_response
         
         #self.clean_up_temp_file(file_path) # TODO: Clean up after a feedback is given/not given. Currently implemented in feedback api
 
-        if len(detection_response)>0:
+        if len(detection_response) > 0:
             return detection_response[0]
         return Metadata()
     
@@ -310,9 +313,14 @@ async def detect_objects(uploaded_files: List[UploadFile],
                 result = detection_service.process_file(uploaded_file)
                 
                 if result:
-                    metadata_results.append(result.convert_to_dict())
-                    
-                    detection_service.metadata[result.filename] = result.convert_to_dict()
+                    if isinstance(result, Metadata):
+                        metadata_results.append(result.convert_to_dict())
+                        detection_service.metadata[result.filename] = result.convert_to_dict()
+                    elif isinstance(result, list):
+                        for item in result:
+                            if isinstance(item, Metadata):
+                                metadata_results.append(item.convert_to_dict())
+                                detection_service.metadata[item.filename] = item.convert_to_dict()
                 
     
         end_time = time.time()
