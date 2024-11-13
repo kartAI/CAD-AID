@@ -58,9 +58,16 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["*"]
 )
 
+# Make sure these directories exist and have proper permissions
+UPLOAD_DIRECTORY = "/app/upload_files"
 FEEDBACK_DIRECTORY = "/app/metadata_files_store"
+DETECTION_RESULTS_PATH = "/app/metadata_files_store/detection_results.json"
+
+# Create directories if they don't exist
+os.makedirs(UPLOAD_DIRECTORY, exist_ok=True)
 os.makedirs(FEEDBACK_DIRECTORY, exist_ok=True)
 
 class FeedbackModel(BaseModel):
@@ -68,72 +75,85 @@ class FeedbackModel(BaseModel):
     user_response: bool
 
 
-async def fetch_detection_results(filename:str):
+async def fetch_detection_results(filename: str):
     """
     Get metadata from detection endpoint
     """
-    async with httpx.AsyncClient() as client:
-        url = "http://detect:8000/detect/detection-results"
-        response = await client.get(url)
-        response.raise_for_status()
-
-        detection_results = response.json()
-      
-        if isinstance(detection_results, dict):
-            detection_filepath = detection_results['filepath']
-            detection_results = detection_results['metadata'][filename]
-        for item in detection_results:
-            if detection_results[item] == filename:
-                return {'filename': detection_results, 'filepath': detection_filepath}
-        
-    return None
-
+    try:
+        async with httpx.AsyncClient() as client:
+            url = "http://detect:8000/detection-results"
+            response = await client.get(url)
+            response.raise_for_status()
+            
+            data = response.json()
+            
+            if not data or 'metadata' not in data:
+                logger.error("No metadata found in detection results")
+                raise HTTPException(status_code=404, detail="No metadata found")
+                
+            if filename not in data['metadata']:
+                logger.error(f"No results found for file: {filename}")
+                raise HTTPException(status_code=404, detail=f"No results found for file: {filename}")
+                
+            return data['metadata'][filename]
+            
+    except httpx.HTTPError as e:
+        logger.error(f"HTTP error while fetching detection results: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+    except Exception as e:
+        logger.error(f"Error fetching detection results: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.post("/")
-async def feedback(#feedback: FeedbackModel
+async def feedback(
     filename: str = Form(...),
     user_response: bool = Form(...),
     #api_key: APIKeyHeader = Depends(get_api_key)
 ):
-    
-    detection_results = await fetch_detection_results(filename)
-    logger.info(f"Fetched detection response {detection_results}")
-    if not detection_results:
-        raise HTTPException(status_code=404, detail="Metadata not found")
-    
-    metadata = detection_results['filename']
-    upload_path = detection_results['filepath']
-
-    upload_file_path = f"{upload_path}/{filename}"
-   
-    feedback_folder =os.path.join(FEEDBACK_DIRECTORY, filename)
-    os.makedirs(feedback_folder, exist_ok=True)
-
-    feedback_data = {
-        'user_response': user_response,
-        'metadata': metadata
-    }
-
-    feedback_file_path = os.path.join(feedback_folder, f"{filename}_feedback_metadata.json")
-
-    with open(feedback_file_path, 'w') as f:
-        json.dump(feedback_data, f, indent=4)
-    
-    saved_image_path = os.path.join(feedback_folder, os.path.basename(upload_file_path))
-    shutil.copy(upload_file_path, saved_image_path)
-
-    #clean up
-    if os.path.exists(upload_file_path):
-        try:
-            os.remove(upload_file_path)
-            logger.info(f"Removed temporary file: {upload_file_path}")
-
-        except Exception as e:
-            logger.error(f"Error removing file '{upload_file_path}': {str(e)}")
-
+    try:
+        detection_results = await fetch_detection_results(filename)
+        logger.info(f"Fetched detection response {detection_results}")
+        if not detection_results:
+            raise HTTPException(status_code=404, detail="Metadata not found")
         
-    return {'message': 'Feedback admitted', 'feedback': feedback_data}
+        # Use .get() with default values to handle missing keys
+        metadata = detection_results.get('filename', {})
+        upload_path = detection_results.get('filepath', '/app/upload_files')  # Default path if not found
+
+        upload_file_path = f"{upload_path}/{filename}"
+       
+        feedback_folder = os.path.join(FEEDBACK_DIRECTORY, filename)
+        os.makedirs(feedback_folder, exist_ok=True)
+
+        feedback_data = {
+            'user_response': user_response,
+            'metadata': metadata,
+            'timestamp': datetime.datetime.now().isoformat()
+        }
+
+        feedback_file_path = os.path.join(feedback_folder, f"{filename}_feedback_metadata.json")
+
+        with open(feedback_file_path, 'w') as f:
+            json.dump(feedback_data, f, indent=4)
+        
+        # Only try to copy and remove if the file exists
+        if os.path.exists(upload_file_path):
+            saved_image_path = os.path.join(feedback_folder, os.path.basename(upload_file_path))
+            shutil.copy(upload_file_path, saved_image_path)
+
+            # Clean up
+            try:
+                os.remove(upload_file_path)
+                logger.info(f"Removed temporary file: {upload_file_path}")
+            except Exception as e:
+                logger.error(f"Error removing file '{upload_file_path}': {str(e)}")
+            
+        return {'message': 'Feedback admitted', 'feedback': feedback_data}
+
+    except Exception as e:
+        logger.error(f"Error processing feedback: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 # Endpoint to check log file
 @app.get("/logs/")

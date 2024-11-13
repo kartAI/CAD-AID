@@ -100,6 +100,9 @@ app.add_middleware(GZipMiddleware, minimum_size=1000)
 UPLOAD_DIRECTORY = "/app/upload_files"
 os.makedirs(UPLOAD_DIRECTORY, exist_ok=True)
 
+METADATA_STORE = "/app/metadata_files_store"
+os.makedirs(METADATA_STORE, exist_ok=True)
+
 
 
 def compute_file_hash(file_path):
@@ -283,6 +286,17 @@ class DetectionService:
         #self.clean_up_temp_file(file_path) # TODO: Clean up after a feedback is given/not given. Currently implemented in feedback api
 
         if len(detection_response) > 0:
+            # Save detection results to JSON file
+            metadata = {
+                "metadata": {
+                    uploaded_file.filename: detection_response[0].convert_to_dict()
+                },
+                "filepath": UPLOAD_DIRECTORY
+            }
+            
+            with open(f"{METADATA_STORE}/detection_results.json", "w") as f:
+                json.dump(metadata, f)
+                
             return detection_response[0]
         return Metadata()
     

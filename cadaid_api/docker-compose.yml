@@ -3,79 +3,65 @@ services:
     build:
       context: .
       dockerfile: detect/Dockerfile
-    image: cadaidregistry.azurecr.io/detect:latest
+    #image: cadaidregistry.azurecr.io/detect:latest
     #image: detect:latest
-    ports:
-      - "8000:8000"
     volumes:
-      - .:/app
+      - ./detect/src:/app/src
       - ./shared:/app/shared
-      - ./shared/static/uploads:/app/static/uploads
+      - ./upload_files:/app/upload_files
+      - ./metadata_files_store:/app/metadata_files_store
     environment:
       - LOG_LEVEL=debug
-      - PYTHONPATH=/app:/app/shared
-      - STATIC_API_KEY=${STATIC_API_KEY}
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: 1
-              capabilities: [gpu]
+      - PYTHONPATH=/app
+    ports:
+      - "8000:8000"
     networks:
       - cadaid_network
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
-      interval: 30s
-      timeout: 5s
-      retries: 3
-      start_period: 30s
+    #healthcheck:
+    #  test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+    #  interval: 30s
+    #  timeout: 5s
+    #  retries: 3
+    #  start_period: 30s
+
   feedback:
     build:
       context: .
       dockerfile: feedback/Dockerfile
-    image: cadaidregistry.azurecr.io/feedback:latest
-    #image: feedback:latest
-    ports:
-      - "8001:8001"
+    #image: cadaidregistry.azurecr.io/feedback:latest
     volumes:
-      - .:/app
+      - ./feedback/src:/app/src
       - ./shared:/app/shared
-      - ./shared/static/uploads:/app/static/uploads
+      - ./metadata_files_store:/app/metadata_files_store
+      - ./upload_files:/app/upload_files
     environment:
       - LOG_LEVEL=debug
-      - PYTHONPATH=/app:/app/shared
-      - STATIC_API_KEY=${STATIC_API_KEY}
+      - PYTHONPATH=/app
+    ports:
+      - "8001:8001"
     networks:
       - cadaid_network
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
-      interval: 30s
-      timeout: 5s
-      retries: 3
-      start_period: 30s
+    #healthcheck:
+    #  test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+    #  interval: 30s
+    #  timeout: 5s
+    #  retries: 3
+    #  start_period: 30s
+    depends_on:
+      - detect
 
   nginx:
     build:
       context: .
       dockerfile: nginx/Dockerfile
-    image: cadaidregistry.azurecr.io/nginx:latest
+    #image: cadaidregistry.azurecr.io/nginx:latest
     ports:
       - "80:80"
     depends_on:
-      detect:
-        condition: service_healthy
-      feedback:
-        condition: service_healthy
-    environment:
-      - STATIC_API_KEY=${STATIC_API_KEY}
+      - detect
+      - feedback
     networks:
       - cadaid_network
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:80"]
-      interval: 30s
-      timeout: 5s
-      retries: 3
 
 networks:
   cadaid_network:

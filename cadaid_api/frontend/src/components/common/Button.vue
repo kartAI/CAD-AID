@@ -1,9 +1,9 @@
 <script setup>
-defineProps({
+const props = defineProps({
   variant: {
     type: String,
-    default: 'primary',
-    validator: (value) => ['primary', 'outline', 'success', 'error'].includes(value)
+    validator: (value) => ['primary', 'outline', 'success', 'error'].includes(value),
+    default: 'primary'
   },
   size: {
     type: String,
@@ -25,14 +25,14 @@ defineProps({
   <button
     class="button"
     :class="[
-      `button--${variant}`,
-      `button--${size}`,
-      { 'button--loading': loading }
+      `button--${props.variant}`,
+      `button--${props.size}`,
+      { 'button--loading': props.loading }
     ]"
-    :disabled="disabled || loading"
+    :disabled="props.disabled || props.loading"
   >
-    <span v-if="loading" class="button__loader"></span>
-    <span class="button__content" :class="{ 'button__content--hidden': loading }">
+    <span v-if="props.loading" class="button__loader"></span>
+    <span class="button__content" :class="{ 'button__content--hidden': props.loading }">
       <slot></slot>
     </span>
   </button>

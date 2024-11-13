@@ -10,7 +10,6 @@ services:
       - ./detect/src:/app/detect/src # mount detect api code
       - ./shared:/app/shared
       - ./upload_files:/app/upload_files
-     # - ./shared/static/uploads:/app/static/uploads
     environment:
       - LOG_LEVEL=debug
       - PYTHONPATH=/app
@@ -21,7 +20,6 @@ services:
     networks:
       - cadaid_network
       
-
   feedback:
     build:
       context: .
@@ -29,11 +27,10 @@ services:
     #image: cadaidregistry.azurecr.io/feedback:latest
     #image: feedback:latest
     volumes:
-      - ./feedback/src:/app/feedback/src # mount detect api code
+      - ./feedback/src:/app/feedback/src # mount feedback api code
       - ./shared:/app/shared
       - ./metadata_files_store:/app/metadata_files_store
       - ./upload_files:/app/upload_files
-     # - ./shared/static/uploads:/app/static/uploads
     environment:
       - LOG_LEVEL=debug
       - PYTHONPATH=/app
@@ -49,6 +46,3 @@ services:
 networks:
   cadaid_network:
     driver: bridge
-
-
-    

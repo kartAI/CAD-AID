@@ -187,23 +187,25 @@ const highlightStyle = computed(() => {
   }
 
   try {
-    const { width, height } = imageRef.value.getBoundingClientRect()
+    const image = imageRef.value
+    const { width: imgWidth, height: imgHeight } = image.getBoundingClientRect()
     const [x1, y1, x2, y2] = props.highlightedArea.bbox
     
-    if (!Number.isFinite(x1) || !Number.isFinite(y1) || 
-        !Number.isFinite(x2) || !Number.isFinite(y2)) {
-      console.log('Invalid bbox:', props.highlightedArea.bbox)
-      return { display: 'none' }
-    }
+    // Scale bbox coordinates according to current image size
+    const scaledX1 = (x1 * imgWidth) / image.naturalWidth
+    const scaledY1 = (y1 * imgHeight) / image.naturalHeight
+    const scaledX2 = (x2 * imgWidth) / image.naturalWidth
+    const scaledY2 = (y2 * imgHeight) / image.naturalHeight
 
     return {
-      left: `${x1}px`,
-      top: `${y1}px`,
-      width: `${x2 - x1}px`,
-      height: `${y2 - y1}px`,
-      border: '3px dashed #87A7A1',
-      backgroundColor: 'rgba(135, 167, 161, 0.1)',
-      animation: 'dash 3s linear infinite'
+      left: `${scaledX1}px`,
+      top: `${scaledY1}px`,
+      width: `${scaledX2 - scaledX1}px`,
+      height: `${scaledY2 - scaledY1}px`,
+      border: '2px dashed #87A7A1',
+      position: 'absolute',
+      pointerEvents: 'none',
+      animation: 'dash 1s linear infinite'
     }
   } catch (error) {
     console.error('Error computing highlight:', error)
@@ -234,6 +236,27 @@ const toggleFullscreen = () => {
   } else {
     document.exitFullscreen()
   }
+}
+
+const highlightedDetection = ref(null)
+
+const handleDetectionHover = (bbox) => {
+  const image = imageRef.value
+  if (!image) return
+  
+  const { width, height } = image.getBoundingClientRect()
+  const [x1, y1, x2, y2] = bbox
+  
+  highlightedDetection.value = {
+    left: `${(x1 / width) * 100}%`,
+    top: `${(y1 / height) * 100}%`,
+    width: `${((x2 - x1) / width) * 100}%`,
+    height: `${((y2 - y1) / height) * 100}%`
+  }
+}
+
+const clearHighlight = () => {
+  highlightedDetection.value = null
 }
 </script>
 
@@ -434,5 +457,24 @@ const toggleFullscreen = () => {
   left: 0;
   right: 0;
   z-index: 1;
+}
+
+.highlight-detection {
+  position: absolute;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.highlight-border {
+  width: 100%;
+  height: 100%;
+  border: 2px dashed #87A7A1;
+  animation: dash 1s linear infinite;
+}
+
+@keyframes dash {
+  to {
+    stroke-dashoffset: -10;
+  }
 }
 </style> 

@@ -1,4 +1,4 @@
-const API_URL = 'http://localhost:8000'
+const API_URL = 'http://localhost'
 
 class ApiService {
   async uploadAndProcess(files) {
@@ -8,9 +8,13 @@ class ApiService {
         formData.append('uploaded_files', file, file.name)
       })
 
-      const response = await fetch(`${API_URL}/detect`, {
+      const response = await fetch(`${API_URL}/detect/`, {
         method: 'POST',
-        body: formData
+        headers: {
+          'Accept': 'application/json',
+        },
+        body: formData,
+        mode: 'cors'
       })
 
       if (!response.ok) {
@@ -19,7 +23,6 @@ class ApiService {
 
       const data = await response.json()
       
-      // Transform the response to include image URLs and file previews
       return data.map((result, index) => ({
         ...result,
         filename: files[index].name,
@@ -34,18 +37,26 @@ class ApiService {
   async submitFeedback(feedback) {
     try {
       const formData = new FormData()
-      formData.append('filename', feedback.filename)
-      formData.append('user_response', feedback.user_response)
-
-      const response = await fetch(`${API_URL}/feedback`, {
+      formData.append('filename', feedback.filename.trim())
+      
+      const isPositiveFeedback = Object.values(feedback.feedback).some(value => value === true)
+      formData.append('user_response', isPositiveFeedback.toString())
+      
+      const response = await fetch(`${API_URL}/feedback/`, {
         method: 'POST',
-        body: formData
+        headers: {
+          'Accept': 'application/json',
+        },
+        body: formData,
+        mode: 'cors',
+        credentials: 'include'
       })
 
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`)
+        const errorText = await response.text()
+        console.error('Feedback submission failed:', errorText)
+        throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`)
       }
-
       return await response.json()
     } catch (error) {
       console.error('Feedback error:', error)
@@ -55,3 +66,4 @@ class ApiService {
 }
 
 export default new ApiService()
+

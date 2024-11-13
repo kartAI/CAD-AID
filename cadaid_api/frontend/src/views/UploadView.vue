@@ -113,7 +113,7 @@ const removeFile = (file) => {
   <main class="upload">
     <div class="back-button-area">
       <Button
-        variant="secondary"
+        variant="outline"
         class="back-button"
         @click="router.push('/')"
       >
@@ -207,30 +207,27 @@ const removeFile = (file) => {
 <style scoped>
 .upload {
   min-height: 100vh;
-  background: linear-gradient(135deg, #DDF3EB 0%, #c5e9db 100%);
+  background: linear-gradient(135deg, #f0f9f6 0%, #e6f4ef 100%);
   padding-top: 115px;
+  display: flex;
+  align-items: center;
 }
 
 .upload-container {
   width: 1142px;
   height: 480px;
-  background: #FFFFFF;
-  border-radius: 5px;
-  margin: 214.5px auto 0;
-  padding: 23px 40px;
-  box-shadow: 4px 4px 20px rgba(46, 45, 48, 0.5),
-              0 0 30px rgba(36, 189, 118, 0.1);
+  background: linear-gradient(135deg, #ffffff 0%, #f8fdfb 100%);
+  border-radius: 12px;
+  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.08);
   display: flex;
   justify-content: space-between;
-  animation: fadeIn 0.5s ease-out;
+  padding: 32px;
+  margin: 40px auto;
   transition: transform 0.3s ease;
 }
 
-.upload-container:hover {
-  transform: scale(1.005);
-}
-
-.upload-container .upload-section, .upload-container .files-section {
+.upload-section, .files-section {
+  width: 48%;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -241,16 +238,31 @@ const removeFile = (file) => {
   font-weight: 400;
   font-size: 24px;
   color: #000000;
-  margin-bottom: 54px;
+  margin-top: 20px;
+  margin-bottom: 24px;
   text-align: center;
+  position: relative;
+  padding-bottom: 8px;
+}
+
+.section-title::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 60px;
+  height: 3px;
+  background: linear-gradient(90deg, transparent, #24BD76, transparent);
+  border-radius: 3px;
 }
 
 .file-drop-zone {
   width: 488px;
   height: 296px;
-  background: #DDF3EB;
-  border: 1px dashed #000000;
-  border-radius: 10px;
+  background: linear-gradient(135deg, #e6f4ef 0%, #DDF3EB 100%);
+  border: 2px dashed rgba(36, 189, 118, 0.3);
+  border-radius: 12px;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -278,9 +290,9 @@ const removeFile = (file) => {
 }
 
 .file-drop-zone.is-dragging {
-  background: #c5e9db;
-  transform: scale(1.01);
+  background: linear-gradient(135deg, #d1ebe3 0%, #c5e9db 100%);
   border-color: #24BD76;
+  transform: scale(1.02);
   box-shadow: 0 0 15px rgba(36, 189, 118, 0.2);
 }
 
@@ -305,12 +317,19 @@ const removeFile = (file) => {
 .upload-button {
   width: 265.3px;
   height: 52.74px;
-  background: #24BD76;
+  background: linear-gradient(135deg, #24BD76, #3BAF8F);
+  box-shadow: 0 4px 12px rgba(36, 189, 118, 0.2);
+  transition: all 0.3s ease;
   border-radius: 10px;
   font-family: 'Noto Sans Display', sans-serif;
   font-weight: 700;
   font-size: 16px;
   color: #2E2D30;
+}
+
+.upload-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(36, 189, 118, 0.3);
 }
 
 .files-section {
@@ -503,13 +522,20 @@ const removeFile = (file) => {
   position: fixed;
   top: 20px;
   right: 20px;
-  background: linear-gradient(135deg, #3BAF8F 0%, #24BD76 100%);
+  background: linear-gradient(135deg, #24BD76, #3BAF8F);
   color: white;
   padding: 15px 25px;
   border-radius: 8px;
   box-shadow: 0 4px 12px rgba(36, 189, 118, 0.2);
   z-index: 1000;
-  animation: slideInAndShake 0.5s ease-out;
+  animation: slideInAndPulse 0.5s ease-out;
+}
+
+@keyframes slideInAndPulse {
+  0% { transform: translateX(100%); }
+  50% { transform: translateX(-10px); }
+  75% { transform: translateX(5px); }
+  100% { transform: translateX(0); }
 }
 </style>
 

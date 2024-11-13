@@ -22,6 +22,11 @@ const router = createRouter({
       path: '/feedback',
       name: 'feedback',
       component: () => import('../views/FeedbackView.vue')
+    },
+    {
+      path: '/success',
+      name: 'success',
+      component: () => import('../views/SuccessView.vue')
     }
   ]
 })
