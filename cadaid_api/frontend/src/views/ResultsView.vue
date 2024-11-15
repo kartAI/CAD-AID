@@ -180,7 +180,7 @@ const analyzeMore = () => {
 }
 
 const numberToText = (num) => {
-  const numbers = ['null', 'en', 'to', 'tre', 'fire', 'fem', 'seks', 'syv', 'åtte', 'ni', 'ti']
+  const numbers = ['null', 'ett', 'to', 'tre', 'fire', 'fem', 'seks', 'syv', 'åtte', 'ni', 'ti']
   return numbers[num] || num.toString()
 }
 
