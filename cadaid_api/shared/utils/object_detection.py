@@ -38,7 +38,9 @@ class ObjectDetectionHandler:
 
         for result in self.results:
             boxes = result.boxes
+            
             for box, cls, conf in zip(boxes.xyxy, boxes.cls, boxes.conf):
+                
                 class_name = self.model.names[int(cls)]
                 drawing_types.append(cls)
                 confidence.append(conf)

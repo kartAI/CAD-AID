@@ -18,13 +18,15 @@ class SegmentationHandler:
     
     
     def filter_text_within_polygons(self, seg_results, target_words: List[TextInfo]) -> List[TextInfo]:
+        """
+        Check if room names exists in segmented masks
+        """
         text_inside_poly = []
-        added_texts = set()
-
+        num_rooms = 0
+    
         for r in seg_results:
-            #if not hasattr(r, 'masks') or r.masks is None:
-            #    continue
             for mask in r.masks.xy:
+                num_rooms +=1
                 polygon = Polygon(mask)
                 for word in target_words:
                     text_boxes = word.bbox
@@ -34,10 +36,7 @@ class SegmentationHandler:
                         centroid = Point(cx,cy)
 
                         if polygon.contains(centroid):
-                            unique_key = (word.text, tuple(map(tuple, word.bbox)))
-                            if unique_key not in added_texts:
-                                text_inside_poly.append(word)
-                                added_texts.add(unique_key)
+                            text_inside_poly.append(word)
         
         return text_inside_poly
     

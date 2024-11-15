@@ -26,7 +26,7 @@ class DrawingInstance:
     cardinal_direction: Optional[str] = None
     scale: Optional[str] = None
     room_names: Optional[List[dict]] = None
-    total_areal: Optional[List[float]] = None
+    number_rooms: Optional[int] = None
     gnr_bnr: Optional[str] = None
 
     def convert_to_dict(self):
@@ -37,7 +37,7 @@ class DrawingInstance:
             'cardinal_direction': self.cardinal_direction,
             'scale': self.scale,
             'room_names': self.room_names,
-            'total_areal': self.total_areal,
+            'number_rooms': self.number_rooms,
             'gnr_bnr': self.gnr_bnr
 
         }
@@ -64,7 +64,7 @@ class Metadata:
                     'cardinal_direction': det.cardinal_direction,
                     'scale': det.scale,
                     'room_names': det.room_names,
-                    'total_areal': det.total_areal,
+                    'number_rooms': det.number_rooms,
                     'gnr_bnr': det.gnr_bnr
                 } for det in self.detections
             ],
