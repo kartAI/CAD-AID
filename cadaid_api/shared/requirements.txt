@@ -11,4 +11,5 @@ python-multipart
 python-dotenv
 fastapi-security
 pytesseract
+tesseract
 httpx

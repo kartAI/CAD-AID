@@ -20,6 +20,7 @@ from dotenv import load_dotenv
 from shared.utils.logger import cadaid_logger
 from shared.utils.object_detection import ObjectDetectionHandler
 from shared.utils.segmentation_handler import SegmentationHandler
+from shared.utils.text_detection import TextDetection, TextProximityFilter
 from shared.utils.data_structures import Metadata, DrawingType, DrawingInstance, TextInfo
 from shared.utils.regex_patterns import (
     scale_pattern,
@@ -28,7 +29,7 @@ from shared.utils.regex_patterns import (
     gnr_bnr_pattern,
     areal_pattern
 )
-from shared.utils.text_detection import TextDetection
+
 from shared.utils.json_response_converter import json_response_converter
 #from shared.auth import get_api_key
 
@@ -121,70 +122,65 @@ class DetectionService:
         self.metadata = {}
         self.cache = {}
     
-    def process_plantegning_instance(self, image_path, detected_text: TextInfo, text_detection: TextDetection):
-        #scale = text.get_scale_in_region([scale_pattern], bbox)
-        #gnr_bnr = text.get_gnr_bnr_in_region([gnr_bnr_pattern], bbox)
+    def process_plantegning_instance(self, image_path, detected_text: TextInfo, text_detection: TextDetection, objdet_bbox):
+        """
+        Perform segmentation to detect rooms and retrieve roomnames
+        """
         
-        def extract_areal(detected_areal_string):
-            number_pattern = r"\d+([.,]+d+)?"
-            areal_as_float = []
-            for areal in detected_areal_string:
-                match = re.search(number_pattern, areal)
-                if match:
-                    areal_float = float(match.group().replace(',', '.'))
-                    areal_as_float.append(areal_float)
-            return areal_as_float
-
         # filter all detected text by roomnames
-        textfilter_by_roomlabels = text_detection.get_target_text(detected_text,room_pattern)
+        room_names = text_detection.get_target_text(detected_text,room_pattern)
         segmentation = SegmentationHandler()
         results = segmentation.run_segmentation(image_path)
 
         # Filter room names found in segmented masks
-        filtered_rooms_by_polygons = segmentation.filter_text_within_polygons(results, textfilter_by_roomlabels)
+        text_filter = TextProximityFilter()
+        rooms_in_polygons = text_filter.filter_text_within_polygons(results, room_names)
 
-        room_names = []
-        for text_info in filtered_rooms_by_polygons:
-            room = text_info.text
-            room_names.append(room)
-        # Filter text by areal
-        textfiltered_by_areal = text_detection.get_rom_areal(detected_text, areal_pattern)
-        # Filter room areal found in segmented masks
-        filtered_areal_by_polygons = segmentation.filter_text_within_polygons(results, textfiltered_by_areal)
-        areal_text = []
-        for text_info in filtered_areal_by_polygons:
-            prob = text_info.probability
-            areal_text_raw = text_info.text
-            if prob > 0.80:
-                areal_text.append(areal_text_raw)
-        areal = extract_areal(areal_text)
-        total_areal = sum(areal)
-    
-        return room_names, total_areal
+        room_names = text_filter.check_text_within_object(rooms_in_polygons,objdet_bbox)
+        
+        return room_names
     
     
-    def create_detection_instance(self, image, drawing_type, bbox, conf, drawing_type_map) -> DrawingInstance:
-        dtype = drawing_type_map.get(int(drawing_type), "unknown").name.lower()
-        instance = DrawingInstance(drawing_type=dtype,bbox=bbox.tolist(),confidence=conf.item())
+    def create_detection_instance(self, image, drawing_type, bbox, conf) -> DrawingInstance:
+        """
+        Extract relevant text based on detected drawing type
+        """
+        instance = DrawingInstance(drawing_type=drawing_type,bbox=bbox,confidence=conf)
 
         text_detection = TextDetection()
+        text_filter = TextProximityFilter()
+       
         detected_text = text_detection.pytesseract_ocr(image)
+    
+        if drawing_type  == DrawingType.FASADE.name.lower():
+           
+            cardinal_direction_txt_info = text_detection.get_cardinal_direction(detected_text, cardinal_direction_pattern)
+            instance.cardinal_direction = text_filter.text_proximity_to_object(cardinal_direction_txt_info, bbox)
 
-        if dtype in [DrawingType.FASADE.name.lower(), DrawingType.SITUASJONSKART.name.lower()]:
-            instance.cardinal_direction = text_detection.get_cardinal_direction_in_region(detected_text,[cardinal_direction_pattern], bbox)
-            #instance.cardinal_direction = text_detection.get_cardinal_direction(detected_text,cardinal_direction_pattern, bbox)
-            instance.scale = text_detection.get_scale_in_region(detected_text,[scale_pattern], bbox)
-            #instance.scale = text_detection.get_scale(detected_text, scale_pattern)
-            #instance.gnr_bnr = text.get_gnr_bnr_in_region([gnr_bnr_pattern], bbox)
+            scale_txt_info = text_detection.get_scale(detected_text, scale_pattern)
+            instance.scale = text_filter.text_proximity_to_object(scale_txt_info, bbox)
         
-        elif dtype == DrawingType.SNITT.name.lower():
-            instance.scale = text_detection.get_scale_in_region(detected_text,[scale_pattern], bbox)
+        elif drawing_type == DrawingType.SNITT.name.lower():
+            scale_txt_info = text_detection.get_scale(detected_text,scale_pattern)
+            instance.scale = text_filter.text_proximity_to_object(scale_txt_info, bbox)
+
         
-        elif dtype == DrawingType.PLANTEGNING.name.lower():
+        elif drawing_type == DrawingType.SITUASJONSKART.name.lower():
+            scale_txt_info = text_detection.get_scale(detected_text,scale_pattern)
+            instance.scale = text_filter.text_proximity_to_object(scale_txt_info, bbox)
+        
+        elif drawing_type == DrawingType.PLANTEGNING.name.lower():
             try:
-                #instance.gnr_bnr = text_detection.get_gnr_bnr()
-                #instance.scale, instance.gnr_bnr, instance.room_names = self.process_plantegning_instance(image_path,bbox, text)
-                instance.room_names, instance.total_areal = self.process_plantegning_instance(image, detected_text, text_detection)
+                
+                instance.room_names = self.process_plantegning_instance(image, detected_text, text_detection, bbox)
+                if not instance.room_names:
+                    # Try rotating image if text is vertical for OCR
+                    for i in range(4):
+                        img = cv2.rotate(image, cv2.ROTATE_90_CLOCKWISE)
+                        instance.room_names = self.process_plantegning_instance(img, detected_text, text_detection, bbox)
+
+                        if instance.room_names:
+                            break
 
 
             except Exception as e:
@@ -193,7 +189,10 @@ class DetectionService:
         return instance
     
     
-    def run_detection_pipeline(self, image, uploaded_file) -> List[DrawingInstance]:
+    def run_detection_pipeline(self, image) -> List[DrawingInstance]:
+        """
+        Perform object detection, text detection and/or segmentation
+        """
         start_time = time.time()
         preprocess_start = time.time()
         
@@ -204,23 +203,22 @@ class DetectionService:
         drawing_types, bboxes, confidences = obj_det.run_detection(image)
         inference_end = time.time()
 
-        
-        drawing_type_map = {
-            0: DrawingType.FASADE,
-            1: DrawingType.PLANTEGNING,
-            2: DrawingType.SITUASJONSKART,
-            3: DrawingType.SNITT
-        }
-
-        return [self.create_detection_instance(image, drawing_type, bbox, conf, drawing_type_map)
+        return [self.create_detection_instance(image, drawing_type, bbox, conf)
                for drawing_type, bbox, conf in zip(drawing_types, bboxes, confidences)]
         
 
     def detect_and_validate(self, image, uploaded_file) -> Metadata:
-        detections = self.run_detection_pipeline(image, uploaded_file)
+        """
+        Perform detection for current file
+        """
+        detections = self.run_detection_pipeline(image)
         return Metadata(filename=uploaded_file.filename, detections=detections)
 
     def process_file_type(self, uploaded_file, file_path) -> List[Metadata]:
+        """
+        Process file depending on filetype and perform detection
+        
+        """
         detection_response = []
         try:
             if uploaded_file.filename.endswith("pdf"):
@@ -265,6 +263,7 @@ class DetectionService:
         return file_path
             
     def process_file(self, uploaded_file):
+        
         file_path = os.path.join(UPLOAD_DIRECTORY, uploaded_file.filename)
         
         # Write the file content
@@ -345,8 +344,7 @@ async def detect_objects(uploaded_files: List[UploadFile],
             raise HTTPException(status_code=400, detail="No valid results found")
         
         uploaded_files = os.listdir(UPLOAD_DIRECTORY)
-        logger.info(f"Uploaded files detection: {uploaded_files}")
-
+       
         return metadata_results
         #return json_response_converter(metadata_results)
     except Exception as e:
