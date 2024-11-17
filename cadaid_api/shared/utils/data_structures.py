@@ -5,7 +5,7 @@ from typing import List, Optional
 from enum import Enum
 from datetime import datetime
 
-
+from pydantic import BaseModel
 
 @dataclass
 class TextInfo:
@@ -13,20 +13,24 @@ class TextInfo:
     bbox: List[tuple]
     probability: float
 
-@dataclass
-class PolygonInfo:
-    room: bool
-    polygon: Polygon
-
-@dataclass
-class DrawingInstance:
+"""class DrawingInstance(BaseModel):
     drawing_type: str
     bbox: List[float]
     confidence: float
     cardinal_direction: Optional[str] = None
     scale: Optional[str] = None
     room_names: Optional[List[dict]] = None
-    total_areal: Optional[List[float]] = None
+    gnr_bnr: Optional[str] = None"""
+
+@dataclass
+class DrawingInstance:
+    drawing_type: str
+    bbox: List[float]
+    confidence: float
+    cardinal_direction: Optional[List[str]]= None
+    #cardinal_direction = None
+    scale: Optional[str] = None
+    room_names: Optional[List[dict]] = None
     gnr_bnr: Optional[str] = None
 
     def convert_to_dict(self):
@@ -37,7 +41,6 @@ class DrawingInstance:
             'cardinal_direction': self.cardinal_direction,
             'scale': self.scale,
             'room_names': self.room_names,
-            'total_areal': self.total_areal,
             'gnr_bnr': self.gnr_bnr
 
         }
@@ -64,18 +67,12 @@ class Metadata:
                     'cardinal_direction': det.cardinal_direction,
                     'scale': det.scale,
                     'room_names': det.room_names,
-                    'total_areal': det.total_areal,
                     'gnr_bnr': det.gnr_bnr
                 } for det in self.detections
             ],
             'store': self.store
         }
 
-@dataclass
-class ObjDetData:
-    drawing_type: Optional[List[str]] = None
-    bbox: Optional[List[float]] = None
-    confidence: Optional[List[float]] = None
 
 class DrawingType(Enum):
     """
@@ -87,10 +84,13 @@ class DrawingType(Enum):
     PLANTEGNING = 'plantegning'
     SNITT = 'snitt'
 
+
+
+
 @dataclass
 class FeedbackData:
     filename: str
-    user_response: str
+    user_response: bool
     original_detection: DrawingInstance
     corrected_detection: Optional[DrawingInstance] = None
     correction_type: Optional[str] = None  # e.g., "wrong_type", "missed_field", "wrong_field"

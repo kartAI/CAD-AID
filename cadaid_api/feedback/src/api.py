@@ -72,8 +72,10 @@ os.makedirs(UPLOAD_DIRECTORY, exist_ok=True)
 os.makedirs(FEEDBACK_DIRECTORY, exist_ok=True)
 
 class FeedbackModel(BaseModel):
-    filename: str
-    user_response: bool
+    filename: str = Form(...)
+    user_response: bool = Form(...)
+
+
 
 
 async def fetch_detection_results(filename: str):
@@ -129,15 +131,21 @@ async def feedback(
         logger.info(f"Fetched detection response {detection_results}")
         if not detection_results:
             raise HTTPException(status_code=404, detail="Metadata not found")
+        
+        # Use .get() with default values to handle missing keys
+        metadata = detection_results.get('filename', {})
+        
+        upload_path = detection_results.get('filepath', '/app/upload_files')  # Default path if not found
 
         upload_file_path = f"{upload_path}/{filename}"
        
         feedback_folder = os.path.join(FEEDBACK_DIRECTORY, filename)
         os.makedirs(feedback_folder, exist_ok=True)
 
+
         feedback_data = {
             'user_response': user_response,
-            'metadata': metadata,
+            'metadata': detection_results,
             'timestamp': datetime.datetime.now().isoformat()
         }
 
