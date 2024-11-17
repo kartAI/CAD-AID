@@ -12,3 +12,6 @@ python-dotenv
 fastapi-security
 pytesseract
 httpx
+azure-storage-blob
+azure-core
+python-jose

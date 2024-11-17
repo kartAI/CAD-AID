@@ -14,7 +14,8 @@ import datetime
 import httpx
 from fastapi.responses import JSONResponse
 from shared.utils.logger import cadaid_logger
-#from shared.auth import get_api_key
+from shared.utils.storage_handler import StorageHandler
+from shared.auth import get_api_key
 
 
 # Set up logger
@@ -46,9 +47,9 @@ app = FastAPI(root_path="/feedback",
                 "name": "Feedback",
                 "description": "API for feedback submission to further improve the CADAID system"
               }], 
-              #swagger_ui_init_oauth={
-                #  "apiKeyName": "X-API-Key"
-              #}
+              swagger_ui_init_oauth={
+                  "apiKeyName": "X-API-Key"
+              }
         )
 
 # Add CORS middleware to allow cross-origin requests
@@ -104,6 +105,8 @@ async def fetch_detection_results(filename: str):
         logger.error(f"Error fetching detection results: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
+# Initialize storage handler
+storage = StorageHandler()
 
 @app.post("/")
 async def feedback(
@@ -112,14 +115,20 @@ async def feedback(
     #api_key: APIKeyHeader = Depends(get_api_key)
 ):
     try:
-        detection_results = await fetch_detection_results(filename)
+        # Try both storage paths
+        if storage.use_azure:
+            detection_results = await storage.get_metadata(filename)
+            if detection_results:
+                metadata = detection_results.get('metadata', {}).get(filename, {})
+                upload_path = detection_results.get('filepath', '/app/upload_files')
+        else:
+            detection_results = await fetch_detection_results(filename)
+            if detection_results:
+                metadata = detection_results.get('filename', {})
+                upload_path = detection_results.get('filepath', '/app/upload_files')
         logger.info(f"Fetched detection response {detection_results}")
         if not detection_results:
             raise HTTPException(status_code=404, detail="Metadata not found")
-        
-        # Use .get() with default values to handle missing keys
-        metadata = detection_results.get('filename', {})
-        upload_path = detection_results.get('filepath', '/app/upload_files')  # Default path if not found
 
         upload_file_path = f"{upload_path}/{filename}"
        
@@ -132,12 +141,17 @@ async def feedback(
             'timestamp': datetime.datetime.now().isoformat()
         }
 
+        # Save feedback locally
         feedback_file_path = os.path.join(feedback_folder, f"{filename}_feedback_metadata.json")
 
         with open(feedback_file_path, 'w') as f:
             json.dump(feedback_data, f, indent=4)
+
+        # Save feedback to Azure if enabled
+        if storage.useazure:
+            await storage.save_metadata(feedback_data, f"feedback{filename}")
         
-        # Only try to copy and remove if the file exists
+        # Handle file cleanup
         if os.path.exists(upload_file_path):
             saved_image_path = os.path.join(feedback_folder, os.path.basename(upload_file_path))
             shutil.copy(upload_file_path, saved_image_path)
@@ -145,6 +159,8 @@ async def feedback(
             # Clean up
             try:
                 os.remove(upload_file_path)
+                if storage.use_azure:
+                    await storage.delete_file(filename)
                 logger.info(f"Removed temporary file: {upload_file_path}")
             except Exception as e:
                 logger.error(f"Error removing file '{upload_file_path}': {str(e)}")
@@ -177,7 +193,7 @@ async def health_check():
             },
             headers={
                 "Content-Type": "application/json",
-                "Content-Length": "100"  # Add explicit content length
+                #"Content-Length": "100"  # Add explicit content length
             }
         )
     except Exception as e:

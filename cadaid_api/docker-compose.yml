@@ -3,16 +3,19 @@ services:
     build:
       context: .
       dockerfile: detect/Dockerfile
-    #image: cadaidregistry.azurecr.io/detect:latest
+    image: cadaidregistry.azurecr.io/detect:latest
     #image: detect:latest
+    environment:
+      - LOG_LEVEL=debug
+      - PYTHONPATH=/app
+      - USE_AZURE_STORAGE=${USE_AZURE_STORAGE:-false}
+      - AZURE_STORAGE_CONNECTION_STRING=${AZURE_STORAGE_CONNECTION_STRING}
+      - AZURE_STORAGE_CONTAINER=${AZURE_STORAGE_CONTAINER:-cadaid-files}
     volumes:
       - ./detect/src:/app/src
       - ./shared:/app/shared
       - ./upload_files:/app/upload_files
       - ./metadata_files_store:/app/metadata_files_store
-    environment:
-      - LOG_LEVEL=debug
-      - PYTHONPATH=/app
     ports:
       - "8000:8000"
     networks:
@@ -28,15 +31,18 @@ services:
     build:
       context: .
       dockerfile: feedback/Dockerfile
-    #image: cadaidregistry.azurecr.io/feedback:latest
+    image: cadaidregistry.azurecr.io/feedback:latest
+    environment:
+      - LOG_LEVEL=debug
+      - PYTHONPATH=/app
+      - USE_AZURE_STORAGE=${USE_AZURE_STORAGE:-false}
+      - AZURE_STORAGE_CONNECTION_STRING=${AZURE_STORAGE_CONNECTION_STRING}
+      - AZURE_STORAGE_CONTAINER=${AZURE_STORAGE_CONTAINER:-cadaid-files}
     volumes:
       - ./feedback/src:/app/src
       - ./shared:/app/shared
       - ./metadata_files_store:/app/metadata_files_store
       - ./upload_files:/app/upload_files
-    environment:
-      - LOG_LEVEL=debug
-      - PYTHONPATH=/app
     ports:
       - "8001:8001"
     networks:
@@ -54,7 +60,7 @@ services:
     build:
       context: .
       dockerfile: nginx/Dockerfile
-    #image: cadaidregistry.azurecr.io/nginx:latest
+    image: cadaidregistry.azurecr.io/nginx:latest
     ports:
       - "80:80"
     depends_on:

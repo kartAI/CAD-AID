@@ -17,6 +17,7 @@ from contextlib import asynccontextmanager
 import asyncio
 from fastapi.responses import JSONResponse
 from dotenv import load_dotenv
+from shared.utils.storage_handler import StorageHandler
 from shared.utils.logger import cadaid_logger
 from shared.utils.object_detection import ObjectDetectionHandler
 from shared.utils.segmentation_handler import SegmentationHandler
@@ -30,7 +31,7 @@ from shared.utils.regex_patterns import (
 )
 from shared.utils.text_detection import TextDetection
 from shared.utils.json_response_converter import json_response_converter
-#from shared.auth import get_api_key
+from shared.auth import get_api_key
 
 
 
@@ -68,9 +69,9 @@ app = FastAPI(lifespan=lifespan,
                 "name": "Detection",
                 "description": "API for object detection and text extraction using CADAID system"
               }],
-             # swagger_ui_init_oauth={
-             #     "apiKeyName": "X-API-KEY"
-            #  }
+              swagger_ui_init_oauth={
+                  "apiKeyName": "X-API-KEY"
+              }
             )
 
 
@@ -120,6 +121,7 @@ class DetectionService:
     def __init__(self):
         self.metadata = {}
         self.cache = {}
+        self.storage = StorageHandler()
     
     def process_plantegning_instance(self, image_path, detected_text: TextInfo, text_detection: TextDetection):
         #scale = text.get_scale_in_region([scale_pattern], bbox)
@@ -264,41 +266,62 @@ class DetectionService:
 
         return file_path
             
-    def process_file(self, uploaded_file):
-        file_path = os.path.join(UPLOAD_DIRECTORY, uploaded_file.filename)
-        
-        # Write the file content
-        with open(file_path, "wb") as file_object:
-            file_object.write(uploaded_file.file.read())
-        
-        # Generate hash from current file content instead of just filename
-        with open(file_path, "rb") as file_object:
-            file_content = file_object.read()
+    async def process_file(self, uploaded_file):
+        try:
+            file_path = os.path.join(UPLOAD_DIRECTORY, uploaded_file.filename)
+
+            # Read file content once
+            file_content = await uploaded_file.read()
+
+            try:
+                # Write the file content locally
+                with open(file_path, "wb") as file_object:
+                    file_object.write(file_content)
+                logger.info(f"File written to: {file_path}")
+            except Exception as e:
+                logger.error(f"Error writing file locally: {str(e)}")
+                raise
+
+            # Generate hash
             file_hash = hashlib.md5(file_content).hexdigest()
         
-        # Process file even if in cache but compare results
-        detection_response = self.process_file_type(uploaded_file, file_path)
-        
-        # Update cache with new results
-        if detection_response:
-            self.cache[file_hash] = detection_response
-        
-        #self.clean_up_temp_file(file_path) # TODO: Clean up after a feedback is given/not given. Currently implemented in feedback api
+            # Process file even if in cache but compare results
+            detection_response = self.process_file_type(uploaded_file, file_path)
 
-        if len(detection_response) > 0:
-            # Save detection results to JSON file
-            metadata = {
-                "metadata": {
-                    uploaded_file.filename: detection_response[0].convert_to_dict()
-                },
-                "filepath": UPLOAD_DIRECTORY
-            }
-            
-            with open(f"{METADATA_STORE}/detection_results.json", "w") as f:
-                json.dump(metadata, f)
+            # Update cache with new results
+            if detection_response:
+                self.cache[file_hash] = detection_response
+
+            if len(detection_response) > 0:
+                # Save detection results both locally and to Azure if enabled
+                metadata = {
+                    "metadata": {
+                        uploaded_file.filename: detection_response[0].convert_to_dict()
+                    },
+                    "filepath": UPLOAD_DIRECTORY
+                }
+
+                try:
+                    # Save locally
+                    with open(f"{METADATA_STORE}/detection_results.json", "w") as f:
+                        json.dump(metadata, f)
+                    logger.info(f"Metadata saved locally to: {METADATA_STORE}/detection_results.json")
+
+                    # If Azure storage is enabled, also save there
+                    if self.storage.use_azure:
+                        await self.storage.save_file(file_content, uploaded_file.filename)
+                        await self.storage.save_metadata(metadata, uploaded_file.filename)
+                        logger.info("File and metadata saved to Azure storage")
+                except Exception as e:
+                    logger.error(f"Error saving metadata: {str(e)}")
+                    raise
                 
-            return detection_response[0]
-        return Metadata()
+                return detection_response[0]
+            return Metadata()
+
+        except Exception as e:
+            logger.error(f"Error in process_file: {str(e)}")
+            raise HTTPException(status_code=500, detail=str(e))
     
 detection_service = DetectionService()
 
@@ -306,7 +329,7 @@ max_workers = 6
 
 @app.post("/")
 async def detect_objects(uploaded_files: List[UploadFile], 
-                         #api_key: str = Depends(get_api_key)
+                         api_key: str = Depends(get_api_key)
                          ):
     start_time = time.time()
     logger.info(f"Starting detection for {len(uploaded_files)} files")
@@ -372,7 +395,7 @@ async def health_check():
             },
             headers={
                 "Content-Type": "application/json",
-                "Content-Length": "100"  # Add explicit content length
+                #"Content-Length": "100"  # Add explicit content length
             }
         )
     except Exception as e:
