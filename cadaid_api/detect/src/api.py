@@ -15,6 +15,7 @@ import json
 import re
 from contextlib import asynccontextmanager
 import asyncio
+from io import BytesIO
 from fastapi.responses import JSONResponse
 from dotenv import load_dotenv
 from shared.utils.storage_handler import StorageHandler
@@ -211,41 +212,41 @@ class DetectionService:
                for drawing_type, bbox, conf in zip(drawing_types, bboxes, confidences)]
         
 
-    def detect_and_validate(self, image, uploaded_file) -> Metadata:
+    def detect_and_validate(self, image, filename) -> Metadata:
         """
         Perform detection for current file
         """
         detections = self.run_detection_pipeline(image)
-        return Metadata(filename=uploaded_file.filename, detections=detections)
+        return Metadata(filename=filename, detections=detections)
 
-    def process_file_type(self, uploaded_file, file_path) -> List[Metadata]:
+    def process_file_type(self, filename: str, file_path: str) -> List[Metadata]:
         """
         Process file depending on filetype and perform detection
         
         """
         detection_response = []
         try:
-            if uploaded_file.filename.endswith("pdf"):
-                logger.debug(f"Processing PDF file: {uploaded_file.filename}")
+            if filename.endswith("pdf"):
+                logger.debug(f"Processing PDF file: {filename}")
                 input_images = convert_from_path(file_path)
                 for image in input_images:
-                    detection = self.detect_and_validate(image, uploaded_file)
+                    detection = self.detect_and_validate(image, filename)
                     detection_response.append(detection)
-            elif uploaded_file.filename.lower().endswith(('.jpg', '.jpeg', '.png')):
-                logger.debug(f"Processing image file: {uploaded_file.filename}")
+            elif filename.lower().endswith(('.jpg', '.jpeg', '.png')):
+                logger.debug(f"Processing image file: {filename}")
                 image = cv2.imread(file_path)
                 if image is None:
-                    raise DetectionError(f"Could not read image file '{uploaded_file.filename}'")
+                    raise DetectionError(f"Could not read image file '{filename}'")
                 
-                detection = self.detect_and_validate(image, uploaded_file)
+                detection = self.detect_and_validate(image, filename)
                 detection_response.append(detection)
             else:
-                raise ValueError(f"Unsupported file format: {uploaded_file.filename}")
+                raise ValueError(f"Unsupported file format: {filename}")
         except DetectionError as de:
             logger.error(str(de))
 
         except Exception as e:
-            logger.error(f"Error processing file '{uploaded_file.filename}': {str(e)}")
+            logger.error(f"Error processing file '{filename}': {str(e)}")
         
         return detection_response
     
@@ -259,6 +260,7 @@ class DetectionService:
                 logger.error(f"Error removing file '{file_path}': {str(e)}")
     
     def save_uploaded_file(self, uploaded_file):
+
         file_path = f"{UPLOAD_DIRECTORY}/{uploaded_file.filename}"
 
         with open(file_path, "wb") as file_object:
@@ -267,17 +269,64 @@ class DetectionService:
         logger.info(f"File written to: {file_path}")
 
         return file_path
+    
+    class UploadFileLike:
+        def __init__(self, content, filename):
+            self.content = content
+            self._filename = filename
+
+        async def read(self):
+            return self.content
+        
+        @property
+        def filename(self):
+            return self._filename
             
     async def process_file(self, uploaded_file):
         try:
-            # Read file content
+            logger.info(f"Starting processing for file: {uploaded_file.filename}")
+            # Read file content once
             file_content = await uploaded_file.read()
+            logger.debug(f"File content read, size: {len(file_content)} bytes")
+
+            # Create BytesIO for processing first
+            process_stream = BytesIO(file_content)
+            process_stream.name = uploaded_file.filename
+
+            # Create file-like object for storage
+            file_stream = self.UploadFileLike(file_content, uploaded_file.filename)
 
             # Save file using StorageHandler
-            saved_file_path = await self.storage.save_file(file_content, uploaded_file.filename)
+            saved_file_path = await self.storage.save_file(file_stream, uploaded_file.filename)
+            logger.info(f"File saved to: {saved_file_path}")
 
-            # Process detection
-            detection_response = self.process_file_type(uploaded_file, saved_file_path)
+            # If using Azure,create temp file
+            if self.storage.use_azure:
+                temp_dir = Path("/app/temp_files")
+                temp_dir.mkdir(exist_ok=True)
+                temp_path = temp_dir / uploaded_file.filename
+
+                # Download file from Azure
+                downloaded_content = await self.storage.get_file(uploaded_file.filename)
+                if downloaded_content:
+                    with open(temp_path, "wb") as f:
+                        f.write(downloaded_content)
+                    saved_file_path = str(temp_path)
+                    logger.info(f"Downloaded file from Azure to temp location: {saved_file_path}")
+                else:
+                    logger.error(f"Error downloading file from Azure: {uploaded_file.filename}")
+                    raise HTTPException(status_code=500, detail="Error downloading file from Azure")
+                
+
+
+            # Process detection using local file path
+            detection_response = self.process_file_type(uploaded_file.filename, saved_file_path)
+            logger.debug(f"Detection response received: {bool(detection_response)}")
+
+            # Clean up temporary file if using Azure
+            if self.storage.use_azure and Path(saved_file_path).exists():
+                Path(saved_file_path).unlink()
+                logger.info(f"Removed temporary file: {saved_file_path}")
 
             if detection_response:
                 file_hash = hashlib.md5(file_content).hexdigest()
@@ -289,20 +338,27 @@ class DetectionService:
                     }
                 }
 
-                # Save metadata using StorageHandler
-                if self.storage.use_azure:
-                    await self.storage.save_metadata(metadata, uploaded_file.filename)
-                else:
-                    self.storage.save_metadata(metadata, uploaded_file.filename)  # No await here
+                logger.debug("Saving metadata")
+                try:
+                    if self.storage.use_azure:
+                        logger.debug("Using Azure storage for metadata")
+                        self.storage.save_metadata(metadata, uploaded_file.filename)
+                    else:
+                        logger.debug("Using local storage for metadata")
+                        self.storage.save_metadata(metadata, uploaded_file.filename)  # No await here
 
-                logger.info("File and metadata saved successfully")
+                    logger.info("Metadata saved successfully")
+                except Exception as metadata_error:
+                    logger.error(f"Metadata storage error: {str(metadata_error)}")
+                    raise
 
                 return detection_response[0]
 
+            logger.warning("No detection response, returning empty metadata")
             return Metadata()
 
         except Exception as e:
-            logger.error(f"Error in process_file: {str(e)}")
+            logger.error(f"Error in process_file: {str(e)}", exc_info=True)
             raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -327,12 +383,25 @@ async def detect_objects(uploaded_files: List[UploadFile],
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
             # Process each file individually
             metadata_results = []
+            # Create a list of tasks to process files
+            tasks = []
             for uploaded_file in uploaded_files:
                 if not uploaded_file.filename:
                     logger.error("File missing filename")
                     continue
-                result = await detection_service.process_file(uploaded_file)
                 
+                # Create task for each file
+                task = asyncio.create_task(detection_service.process_file(uploaded_file))
+                tasks.append(task)
+
+            # Wait for all tasks to complete
+            results = await asyncio.gather(*tasks, return_exceptions=True)
+
+            # Process results
+            for result in results:
+                if isinstance(result, Exception):
+                    logger.error(f"Error processing file: {str(result)}")
+                    continue
                 if result:
                     if isinstance(result, Metadata):
                         metadata_results.append(result.convert_to_dict())

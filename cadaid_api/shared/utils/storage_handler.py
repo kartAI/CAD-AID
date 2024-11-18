@@ -21,25 +21,46 @@ class StorageHandler:
         
     async def save_file(self, file_content: BinaryIO, filename: str) -> str:
         """Save uploaded file and return its path"""
-        if self.use_azure:
-            blob_path = f"uploads/{filename}"
-            blob_client = self.container_client.get_blob_client(blob_path)
-            await blob_client.upload_blob(file_content)
-            return blob_path
-        else:
-            file_path = self.upload_dir / filename
-            with open(file_path, "wb") as f:
-                f.write(file_content.read())
-            return str(file_path)
+        try:
+            if self.use_azure:
+                blob_path = f"uploads/{filename}"
+                print(f"Saving to Azure Blob: {blob_path}")
+                blob_client = self.container_client.get_blob_client(blob_path)
+                # Convert file content to bytes before uploading
+                print("Reading file content")
+                content = await file_content.read()
+                if not isinstance(content, bytes):
+                    print(f"Converting content type {type(content)} to bytes")
+                    content = bytes(str(content), "utf-8") if isinstance(content, (str, dict)) else bytes(content)
+                print(f"Content read, size: {len(content)} bytes")
+                print("Uploading to blob storage")
+                blob_client.upload_blob(content, overwrite=True)
+                print("Upload complete")
+                return blob_path
+            else:
+                file_path = self.upload_dir / filename
+                print(f"Saving to local path: {file_path}")
+                content = await file_content.read()
+                print(f"Content read, size: {len(content)} bytes")
+                with open(file_path, "wb") as f:
+                    f.write(content)
+                print("File saved locally")
+                return str(file_path)
+        except Exception as e:
+            print(f"Error saving file: {str(e)}")
+            print(f"Error type: {type(e)}")
+            print(f"Error details: {e.__dict__}")
+            print(f"Content type: {type(content)}")
+            raise
 
 
         
-    async def save_metadata(self, metadata: dict, filename: str) -> str:
+    def save_metadata(self, metadata: dict, filename: str) -> str:
         """Save metadata and return its path"""
         if self.use_azure:
             blob_path = f"metadata/{filename}_metadata.json"
             blob_client = self.container_client.get_blob_client(blob_path)
-            await blob_client.upload_blob(json.dumps(metadata), overwrite=True)  # Asynchronous
+            blob_client.upload_blob(json.dumps(metadata), overwrite=True)  # Asynchronous
             return blob_path
         else:
             file_path = self.metadata_dir / f"{filename}_metadata.json"
@@ -55,7 +76,9 @@ class StorageHandler:
             if self.use_azure:
                 blob_path = f"uploads/{filename}"
                 blob_client = self.container_client.get_blob_client(blob_path)
-                return await blob_client.download_blob().readall()
+                download_stream = blob_client.download_blob()
+                content = download_stream.readall()
+                return content
             else:
                 file_path = self.upload_dir / filename
                 if file_path.exists():

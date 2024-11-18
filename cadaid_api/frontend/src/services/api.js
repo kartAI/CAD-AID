@@ -31,8 +31,7 @@ class ApiService {
           'X-API-KEY': API_KEY
         },
         body: formData,
-        mode: 'cors',
-        credentials: 'include'
+        mode: 'cors'
       })
 
       console.log('Response status:', response.status)
@@ -84,8 +83,7 @@ class ApiService {
           'X-API-KEY': API_KEY
         },
         body: formData,
-        mode: 'cors',
-        credentials: 'include'
+        mode: 'cors'
       })
 
       console.log('Feedback response status:', response.status)

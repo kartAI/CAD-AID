@@ -84,7 +84,7 @@ async def fetch_detection_results(filename: str):
     """
     try:
         async with httpx.AsyncClient() as client:
-            url = "http://detect:8000/detection-results"
+            url = "http://cadaid-api.westeurope.azurecontainer.io/detect/detection-results"
             response = await client.get(url)
             response.raise_for_status()
             
@@ -117,8 +117,9 @@ async def feedback(
     api_key: APIKeyHeader = Depends(get_api_key)
 ):
     try:
-        # Fetch metadata using StorageHandler
+        # Create task for metadata fetch
         detection_results = await storage.get_metadata(filename)
+
         if not detection_results:
             raise HTTPException(status_code=404, detail="Metadata not found")
 
@@ -131,23 +132,25 @@ async def feedback(
 
         # Save feedback metadata using StorageHandler
         feedback_path = f"feedback_{filename}"
-        await storage.save_metadata(feedback_data, feedback_path)
+        storage.save_metadata(feedback_data, feedback_path)
 
         # Handle local file copy if not using Azure
-        upload_file_path = os.path.join(UPLOAD_DIRECTORY, filename)
-        if not storage.use_azure and os.path.exists(upload_file_path):
-            # Ensure feedback folder exists
-            feedback_folder = os.path.join(FEEDBACK_DIRECTORY, filename)
-            os.makedirs(feedback_folder, exist_ok=True)
+        if not storage.use_azure:
+            upload_file_path = os.path.join(UPLOAD_DIRECTORY, filename)
+            if os.path.exists(upload_file_path):
+                # Ensure feedback folder exists
+                feedback_folder = os.path.join(FEEDBACK_DIRECTORY, filename)
+                os.makedirs(feedback_folder, exist_ok=True)
 
-            # Copy the file to the feedback folder
-            saved_image_path = os.path.join(feedback_folder, os.path.basename(upload_file_path))
-            shutil.copy(upload_file_path, saved_image_path)
-            logger.info(f"Copied file to feedback directory: {saved_image_path}")
+                # Copy the file to the feedback folder
+                saved_image_path = os.path.join(feedback_folder, os.path.basename(upload_file_path))
+                shutil.copy(upload_file_path, saved_image_path)
+                logger.info(f"Copied file to feedback directory: {saved_image_path}")
 
         # Clean up file if Azure is enabled
         if storage.use_azure:
-            await storage.delete_file(filename)
+            delete_task = asyncio.create_task(storage.delete_file(filename))
+            await delete_task
 
         logger.info(f"Feedback saved for {filename}")
         return {"message": "Feedback submitted successfully", "feedback": feedback_data}

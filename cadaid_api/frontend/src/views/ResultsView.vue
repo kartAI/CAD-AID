@@ -118,17 +118,17 @@ onMounted(() => {
     }
 
     results.value = parsedFiles.map(file => ({
-      filename: file.filename,
-      url: file.url,
-      processedData: {
-        detections: file.detections || [],
-        drawing_types: file.detections?.map(d => d.drawing_type) || [],
-        room_names: file.detections?.flatMap(d => d.room_names || []) || [],
-        cardinal_direction: file.detections?.[0]?.cardinal_direction,
-        scale: file.detections?.[0]?.scale,
-        gnr_bnr: file.detections?.[0]?.gnr_bnr
+        filename: file.filename,
+        url: file.url,
+        processedData: {
+          detections: file.detections || [],
+          drawing_types: file.detections?.map(d => d.drawing_type) || [],
+          room_names: file.detections?.flatMap(d => d.room_names || []) || [],
+          cardinal_directions: file.detections?.map(d => d.cardinal_direction).filter(Boolean) || [],
+          scales: file.detections?.map(d => d.scale).filter(Boolean) || [],
+          gnr_bnr_values: file.detections?.map(d => d.gnr_bnr).filter(Boolean) || []
       }
-    }))
+    }));
     console.log('Set results:', results.value)
   } catch (error) {
     console.error('Error:', error)
