@@ -13,9 +13,34 @@ properties:
           requests:
             cpu: 2
             memoryInGB: 4
+          limits:
+            cpu: 4
+            memoryInGB: 8
+        livenessProbe:
+          httpget:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 120
+          periodSeconds: 60
+          timeoutSeconds: 60
+          successThreshold: 1
+          failureThreshold: 10
+        readinessProbe:
+          httpget:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 120
+          periodSeconds: 60
+          timeoutSeconds: 60
         environmentVariables:
           - name: STATIC_API_KEY
             secureValue: 'yx9D8EfFrMMXRjilmgvZP6P6pAIo8R2o7f_XZGzS614'
+          - name: USE_AZURE_STORAGE
+            value: 'true'
+          - name: AZURE_STORAGE_CONNECTION_STRING
+            secureValue: 'DefaultEndpointsProtocol=https;EndpointSuffix=core.windows.net;AccountName=cadaidstorage3;AccountKey=gywV/46LJHrH4613cK5SMilu8cEEUpsJdAOJF2RTQlrPJV1p/L1OhLEiXySHE9UsSS15lf4x8zIF+AStxNx5aA==;BlobEndpoint=https://cadaidstorage3.blob.core.windows.net/;FileEndpoint=https://cadaidstorage3.file.core.windows.net/;QueueEndpoint=https://cadaidstorage3.queue.core.windows.net/;TableEndpoint=https://cadaidstorage3.table.core.windows.net/'
+          - name: AZURE_STORAGE_CONTAINER
+            value: 'cadaid-files'
     - name: feedback
       properties:
         image: cadaidregistry.azurecr.io/feedback:latest
@@ -25,9 +50,34 @@ properties:
           requests:
             cpu: 1.5
             memoryInGB: 3
+          limits:
+            cpu: 3
+            memoryInGB: 6
+        livenessProbe:
+          httpget:
+            path: /health
+            port: 8001
+          initialDelaySeconds: 120
+          periodSeconds: 60
+          timeoutSeconds: 60
+          successThreshold: 1
+          failureThreshold: 10
+        readinessProbe:
+          httpget:
+            path: /health
+            port: 8001
+          initialDelaySeconds: 120
+          periodSeconds: 60
+          timeoutSeconds: 60
         environmentVariables:
           - name: STATIC_API_KEY
             secureValue: 'yx9D8EfFrMMXRjilmgvZP6P6pAIo8R2o7f_XZGzS614'
+          - name: USE_AZURE_STORAGE
+            value: 'true'
+          - name: AZURE_STORAGE_CONNECTION_STRING
+            secureValue: 'DefaultEndpointsProtocol=https;EndpointSuffix=core.windows.net;AccountName=cadaidstorage3;AccountKey=gywV/46LJHrH4613cK5SMilu8cEEUpsJdAOJF2RTQlrPJV1p/L1OhLEiXySHE9UsSS15lf4x8zIF+AStxNx5aA==;BlobEndpoint=https://cadaidstorage3.blob.core.windows.net/;FileEndpoint=https://cadaidstorage3.file.core.windows.net/;QueueEndpoint=https://cadaidstorage3.queue.core.windows.net/;TableEndpoint=https://cadaidstorage3.table.core.windows.net/'
+          - name: AZURE_STORAGE_CONTAINER
+            value: 'cadaid-files'
     - name: nginx
       properties:
         image: cadaidregistry.azurecr.io/nginx:latest
@@ -37,6 +87,9 @@ properties:
           requests:
             cpu: 0.5
             memoryInGB: 1
+          limits:
+            cpu: 1
+            memoryInGB: 2
   osType: Linux
   ipAddress:
     type: Public

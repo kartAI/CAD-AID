@@ -3,6 +3,10 @@ services:
     build:
       context: .
       dockerfile: detect/Dockerfile
+      args:
+        - BUILDKIT_INLINE_CACHE=1
+      cache_from:
+        - cadaidregistry.azurecr.io/detect:latest
     image: cadaidregistry.azurecr.io/detect:latest
     #image: detect:latest
     environment:
@@ -31,6 +35,10 @@ services:
     build:
       context: .
       dockerfile: feedback/Dockerfile
+      args:
+        - BUILDKIT_INLINE_CACHE=1
+      cache_from:
+        - cadaidregistry.azurecr.io/feedback:latest
     image: cadaidregistry.azurecr.io/feedback:latest
     environment:
       - LOG_LEVEL=debug
@@ -60,6 +68,10 @@ services:
     build:
       context: .
       dockerfile: nginx/Dockerfile
+      args:
+        - BUILDKIT_INLINE_CACHE=1
+      cache_from:
+        - cadaidregistry.azurecr.io/nginx:latest
     image: cadaidregistry.azurecr.io/nginx:latest
     ports:
       - "80:80"

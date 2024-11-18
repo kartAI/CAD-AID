@@ -32,19 +32,22 @@ class StorageHandler:
                 f.write(file_content.read())
             return str(file_path)
 
+
         
     async def save_metadata(self, metadata: dict, filename: str) -> str:
         """Save metadata and return its path"""
         if self.use_azure:
             blob_path = f"metadata/{filename}_metadata.json"
             blob_client = self.container_client.get_blob_client(blob_path)
-            await blob_client.upload_blob(json.dumps(metadata, overwrite=True))
+            await blob_client.upload_blob(json.dumps(metadata), overwrite=True)  # Asynchronous
             return blob_path
         else:
             file_path = self.metadata_dir / f"{filename}_metadata.json"
             with open(file_path, "w") as f:
-                json.dump(metadata, f)
+                json.dump(metadata, f)  # Synchronous
             return str(file_path)
+
+
         
     async def get_file(self, filename: str) -> Optional[bytes]:
         """Retrieve file content"""

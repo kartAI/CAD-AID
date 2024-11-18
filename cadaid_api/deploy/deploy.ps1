@@ -4,18 +4,30 @@ $yamlPath = ".\aci_deploy.yaml"
 # Read the YAML file
 $yamlContent = Get-Content -Path $yamlPath -Raw
 
-# Debug: Print the environment variable (mask the key for security)
-Write-Host "Checking if AZURE_STORAGE_CONNECTION_STRING is set:"
+# Debug: Print the environment variables (mask sensitive data for security)
+Write-Host "Checking environment variables:"
 if ($env:AZURE_STORAGE_CONNECTION_STRING) {
-    Write-Host "Storage connection string is present"
+    Write-Host "AZURE_STORAGE_CONNECTION_STRING is present"
 } else {
-    Write-Host "Storage connection string is missing!"
+    Write-Host "AZURE_STORAGE_CONNECTION_STRING is missing!"
 }
 
+if ($env:STATIC_API_KEY) {
+    Write-Host "STATIC_API_KEY is present"
+} else {
+    Write-Host "STATIC_API_KEY is missing!"
+}
+
+# Ensure USE_AZURE_STORAGE is set to true
+$env:USE_AZURE_STORAGE = "true"
+Write-Host "Setting USE_AZURE_STORAGE to true"
+
 # Create replacements hashtable
-$replacements = @{}
-$replacements['{{AZURE_STORAGE_CONNECTION_STRING}}'] = $env:AZURE_STORAGE_CONNECTION_STRING
-$replacements['{{STATIC_API_KEY}}'] = $env:STATIC_API_KEY
+$replacements = @{
+    '{{AZURE_STORAGE_CONNECTION_STRING}}' = $env:AZURE_STORAGE_CONNECTION_STRING
+    '{{STATIC_API_KEY}}'                  = $env:STATIC_API_KEY
+    '{{USE_AZURE_STORAGE}}'               = $env:USE_AZURE_STORAGE
+}
 
 # Function to escape single quotes in values
 function Escape-SingleQuotes($value) {
@@ -29,7 +41,7 @@ foreach ($placeholder in $replacements.Keys) {
         Write-Host "Warning: No value found for $placeholder"
         continue
     }
-    $value = Escape-SingleQuotes $value
+    $value = Escape-SingleQuotes($value)
     $yamlContent = $yamlContent.Replace($placeholder, $value)
 }
 

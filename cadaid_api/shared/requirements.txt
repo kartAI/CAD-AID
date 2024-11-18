@@ -14,5 +14,5 @@ httpx
 azure-storage-blob
 azure-core
 python-jose
-tesseract
+pytesseract
 httpx

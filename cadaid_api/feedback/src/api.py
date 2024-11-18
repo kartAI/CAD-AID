@@ -114,70 +114,48 @@ storage = StorageHandler()
 async def feedback(
     filename: str = Form(...),
     user_response: bool = Form(...),
-    #api_key: APIKeyHeader = Depends(get_api_key)
+    api_key: APIKeyHeader = Depends(get_api_key)
 ):
     try:
-        # Try both storage paths
-        if storage.use_azure:
-            detection_results = await storage.get_metadata(filename)
-            if detection_results:
-                metadata = detection_results.get('metadata', {}).get(filename, {})
-                upload_path = detection_results.get('filepath', '/app/upload_files')
-        else:
-            detection_results = await fetch_detection_results(filename)
-            if detection_results:
-                metadata = detection_results.get('filename', {})
-                upload_path = detection_results.get('filepath', '/app/upload_files')
-        logger.info(f"Fetched detection response {detection_results}")
+        # Fetch metadata using StorageHandler
+        detection_results = await storage.get_metadata(filename)
         if not detection_results:
             raise HTTPException(status_code=404, detail="Metadata not found")
-        
-        # Use .get() with default values to handle missing keys
-        metadata = detection_results.get('filename', {})
-        
-        upload_path = detection_results.get('filepath', '/app/upload_files')  # Default path if not found
 
-        upload_file_path = f"{upload_path}/{filename}"
-       
-        feedback_folder = os.path.join(FEEDBACK_DIRECTORY, filename)
-        os.makedirs(feedback_folder, exist_ok=True)
-
-
+        # Prepare feedback data
         feedback_data = {
             'user_response': user_response,
             'metadata': detection_results,
             'timestamp': datetime.datetime.now().isoformat()
         }
 
-        # Save feedback locally
-        feedback_file_path = os.path.join(feedback_folder, f"{filename}_feedback_metadata.json")
+        # Save feedback metadata using StorageHandler
+        feedback_path = f"feedback_{filename}"
+        await storage.save_metadata(feedback_data, feedback_path)
 
-        with open(feedback_file_path, 'w') as f:
-            json.dump(feedback_data, f, indent=4)
+        # Handle local file copy if not using Azure
+        upload_file_path = os.path.join(UPLOAD_DIRECTORY, filename)
+        if not storage.use_azure and os.path.exists(upload_file_path):
+            # Ensure feedback folder exists
+            feedback_folder = os.path.join(FEEDBACK_DIRECTORY, filename)
+            os.makedirs(feedback_folder, exist_ok=True)
 
-        # Save feedback to Azure if enabled
-        if storage.useazure:
-            await storage.save_metadata(feedback_data, f"feedback{filename}")
-        
-        # Handle file cleanup
-        if os.path.exists(upload_file_path):
+            # Copy the file to the feedback folder
             saved_image_path = os.path.join(feedback_folder, os.path.basename(upload_file_path))
             shutil.copy(upload_file_path, saved_image_path)
+            logger.info(f"Copied file to feedback directory: {saved_image_path}")
 
-            # Clean up
-            try:
-                os.remove(upload_file_path)
-                if storage.use_azure:
-                    await storage.delete_file(filename)
-                logger.info(f"Removed temporary file: {upload_file_path}")
-            except Exception as e:
-                logger.error(f"Error removing file '{upload_file_path}': {str(e)}")
-            
-        return {'message': 'Feedback admitted', 'feedback': feedback_data}
+        # Clean up file if Azure is enabled
+        if storage.use_azure:
+            await storage.delete_file(filename)
+
+        logger.info(f"Feedback saved for {filename}")
+        return {"message": "Feedback submitted successfully", "feedback": feedback_data}
 
     except Exception as e:
         logger.error(f"Error processing feedback: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
+
 
 # Endpoint to check log file
 @app.get("/logs/")
