@@ -40,9 +40,9 @@ const totalQuestions = computed(() => {
   let count = 0
   count += (currentFile.value.processedData.detections?.length || 0)
   count += (currentFile.value.processedData.room_names?.length || 0)
-  if (currentFile.value.processedData.cardinal_direction) count++
-  if (currentFile.value.processedData.scale) count++
-  if (currentFile.value.processedData.gnr_bnr) count++
+  if (currentFile.value.processedData.cardinal_directions?.length) count++
+  if (currentFile.value.processedData.scales?.length) count++
+  if (currentFile.value.processedData.gnr_bnr_values?.length) count++
   return count
 })
 
@@ -72,6 +72,8 @@ const getUniqueKey = (item, type, index) => {
     return `${filePrefix}drawing_type_${item.drawing_type}_${index}`
   } else if (type === 'room') {
     return `${filePrefix}room_${item.name}_${index}`
+  } else if (type === 'other') {
+    return `${filePrefix}${item.field}_${item.value}`
   }
   return ''
 }
@@ -83,9 +85,11 @@ const getFeedbackStatus = (item, type, index) => {
 
 const handleFeedback = (item, type, index, isCorrect) => {
   const key = getUniqueKey(item, type, index)
-  feedbackProgress.value = {
-    ...feedbackProgress.value,
-    [key]: isCorrect
+  if (key) {
+    feedbackProgress.value = {
+      ...feedbackProgress.value,
+      [key]: isCorrect
+    }
   }
 }
 
@@ -125,7 +129,7 @@ onMounted(() => {
           drawing_types: file.detections?.map(d => d.drawing_type) || [],
           room_names: file.detections?.flatMap(d => d.room_names || []) || [],
           cardinal_directions: file.detections?.map(d => d.cardinal_direction).filter(Boolean) || [],
-          scales: file.detections?.map(d => d.scale).filter(Boolean) || [],
+          scales: file.detections?.flatMap(d => Array.isArray(d.scale) ? d.scale : [d.scale]).filter(Boolean) || [],
           gnr_bnr_values: file.detections?.map(d => d.gnr_bnr).filter(Boolean) || []
       }
     }));
@@ -276,9 +280,9 @@ const hasRoomNames = computed(() =>
 const hasOtherInfo = computed(() => {
   const data = currentFile.value?.processedData
   return Boolean(
-    data?.cardinal_direction?.length > 0 || 
-    data?.scale?.length > 0 || 
-    data?.gnr_bnr?.length > 0
+    data?.cardinal_directions?.length > 0 || 
+    data?.scales?.length > 0 || 
+    data?.gnr_bnr_values?.length > 0
   )
 })
 
@@ -343,9 +347,9 @@ const hasAnyContent = computed(() => {
   return Boolean(
     (data?.detections?.length > 0) ||
     (data?.room_names?.length > 0) ||
-    data?.cardinal_direction ||
-    data?.scale ||
-    data?.gnr_bnr
+    data?.cardinal_directions?.length > 0 ||
+    data?.scales?.length > 0 ||
+    data?.gnr_bnr_values.length > 0
   )
 })
 
@@ -354,9 +358,9 @@ const hasFileContent = (file) => {
   return Boolean(
     (data?.detections?.length > 0) ||
     (data?.room_names?.length > 0) ||
-    data?.cardinal_direction ||
-    data?.scale ||
-    data?.gnr_bnr
+    data?.cardinal_directions?.length > 0 ||
+    data?.scales?.length > 0 ||
+    data?.gnr_bnr_values?.length > 0
   )
 }
 
@@ -365,9 +369,9 @@ const getFileTotalQuestions = (file) => {
   let count = 0
   count += (file.processedData.detections?.length || 0)
   count += (file.processedData.room_names?.length || 0)
-  if (file.processedData.cardinal_direction) count++
-  if (file.processedData.scale) count++
-  if (file.processedData.gnr_bnr) count++
+  if (file.processedData.cardinal_directions?.length) count++
+  if (file.processedData.scales?.length) count++
+  if (file.processedData.gnr_bnr_values?.length) count++
   return count
 }
 
@@ -493,17 +497,17 @@ watch(activeFileIndex, (newIndex, oldIndex) => {
             </button>
             
             <div v-if="toggleStates.otherInfoFeedback" class="section-content">
-              <div v-if="currentFile?.processedData?.cardinal_direction" class="info-item">
+              <div v-if="currentFile?.processedData?.cardinal_directions?.length" class="info-item">
                 <span class="info-label">Himmelretning: </span>
-                <span class="field-name">"{{ currentFile.processedData.cardinal_direction }}"</span>
+                <span class="field-name">"{{ currentFile.processedData.cardinal_directions[0] }}"</span>
               </div>
-              <div v-if="currentFile?.processedData?.scale" class="info-item">
+              <div v-if="currentFile?.processedData?.scales?.length" class="info-item">
                 <span class="info-label">Målestokk: </span>
-                <span class="field-name">"{{ currentFile.processedData.scale }}"</span>
+                <span class="field-name">"{{ currentFile.processedData.scales[0] }}"</span>
               </div>
-              <div v-if="currentFile?.processedData?.gnr_bnr" class="info-item">
+              <div v-if="currentFile?.processedData?.gnr_bnr_values?.length" class="info-item">
                 <span class="info-label">Gnr/Bnr (gårdsnummer/bruksnummer): </span>
-                <span class="field-name">"{{ currentFile.processedData.gnr_bnr }}"</span>
+                <span class="field-name">"{{ currentFile.processedData.gnr_bnr_values[0] }}"</span>
               </div>
             </div>
           </div>
@@ -621,21 +625,43 @@ watch(activeFileIndex, (newIndex, oldIndex) => {
               </button>
               
               <div v-if="toggleStates.otherInfoFeedback" class="section-content">
-                <div v-if="currentFile?.processedData?.cardinal_direction" class="feedback-item">
+                <div v-if="currentFile?.processedData?.cardinal_directions?.length" class="feedback-item">
                   <p class="feedback-question">
-                    <span class="field-name">"{{ currentFile.processedData.cardinal_direction }}"</span>
+                    <span class="field-name">"{{ currentFile.processedData.cardinal_directions[0] }}"</span>
                     <span class="question-text"> - Er dette riktig himmelretning?</span>
                   </p>
                   <div class="feedback-buttons">
                     <Button 
-                      :variant="getFeedbackStatus({ field: 'cardinal_direction', value: currentFile.processedData.cardinal_direction, isCorrect: true }) ? 'success' : 'outline'"
-                      @click="handleFeedback({ field: 'cardinal_direction', value: currentFile.processedData.cardinal_direction, isCorrect: true })"
+                      :variant="getFeedbackStatus({ field: 'cardinal_directions', value: currentFile.processedData.cardinal_directions[0], isCorrect: true }) ? 'success' : 'outline'"
+                      @click="handleFeedback({ field: 'cardinal_directions', value: currentFile.processedData.cardinal_directions[0] }, 'other', 0, true)"
                     >
                       Ja
                     </Button>
                     <Button 
-                      :variant="getFeedbackStatus({ field: 'cardinal_direction', value: currentFile.processedData.cardinal_direction, isCorrect: false }) ? 'error' : 'outline'"
-                      @click="handleFeedback({ field: 'cardinal_direction', value: currentFile.processedData.cardinal_direction, isCorrect: false })"
+                      :variant="getFeedbackStatus({ field: 'cardinal_directions', value: currentFile.processedData.cardinal_direction[0], isCorrect: false }) ? 'error' : 'outline'"
+                      @click="handleFeedback({ field: 'cardinal_directions', value: currentFile.processedData.cardinal_direction[0] }, 'other', 0, false )"
+                    >
+                      Nei
+                    </Button>
+                  </div>
+                </div>
+                <div v-if="currentFile?.processedData?.scales?.length" class="feedback-item">
+                  <p class="feedback-question">
+                    <span class="field-name">"{{ currentFile.processedData.scales[0] }}"</span>
+                    <span class="question-text"> - Er dette riktig målestokk?</span>
+                  </p>
+                  <div class="feedback-buttons">
+                    <Button
+                      variant="outline"
+                      :class="getButtonClasses('yes', { field: 'scales', value: currentFile.processedData.scales[0] }, 'other', 0)"
+                      @click="handleFeedback({ field: 'scales', value: currentFile.processedData.scales[0] }, 'other', 0, true)"
+                    >
+                      Ja
+                    </Button>
+                    <Button
+                      variant="outline"
+                      :class="getButtonClasses('no', { field: 'scales', value: currentFile.processedData.scales[0] }, 'other', 0)"
+                      @click="handleFeedback({ field: 'scales', value: currentFile.processedData.scales[0] }, 'other', 0, false)"
                     >
                       Nei
                     </Button>

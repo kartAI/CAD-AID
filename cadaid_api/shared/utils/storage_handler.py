@@ -13,10 +13,29 @@ class StorageHandler:
         self.use_azure = use_azure
         logger.debug(f"Using Azure Blob Storage: {self.use_azure}")
         if self.use_azure:
-            connection_string = os.getenv('AZURE_STORAGE_CONNECTION_STRING')
-            self.container_name = os.getenv('AZURE_STORAGE_CONTAINER')
-            self.blob_service_client = BlobServiceClient.from_connection_string(connection_string)
-            self.container_client = self.blob_service_client.get_container_client(self.container_name)
+            try:
+                # Get connection details from environment variables
+                self.connection_string = os.getenv('AZURE_STORAGE_CONNECTION_STRING')
+                self.container_name = os.getenv('AZURE_STORAGE_CONTAINER')
+
+                if not self.connection_string or not self.container_name:
+                    raise ValueError("Azure Blob Storage connection details not found in environment variables.")
+                
+                # Create the blob service client
+                self.blob_service_client = BlobServiceClient.from_connection_string(self.connection_string)
+
+                # Get container client and verify its existence
+                self.container_client = self.blob_service_client.get_container_client(self.container_name)
+                if not self.container_client.exists():
+                    raise ValueError(f"Azure Blob Storage container '{self.container_name}' not found.")
+                
+                # Verify that we can list blobs in the container
+                next(self.container_client.list_blobs(), None)
+
+                logger.info(f"Connected to Azure Blob Storage container: {self.container_name}")
+            except Exception as e:
+                logger.error(f"Error connecting to Azure Blob Storage: {str(e)}")
+                raise
         else:
             self.upload_dir = Path("/app/upload_files")
             self.metadata_dir = Path("/app/metadata_files_store")
@@ -89,7 +108,13 @@ class StorageHandler:
                 blob_path = f"metadata/{filename}_metadata.json"
                 logger.debug(f"Trying to fetch metadata blob at path: {blob_path}")
                 blob_client = self.container_client.get_blob_client(blob_path)
-                content = blob_client.download_blob().readall()
+                if not blob_client.exists():
+                    logger.warning(f"Metadata blob at {blob_path} not found.")
+                    return None
+                
+                download_stream = blob_client.download_blob()
+                content = download_stream.readall()
+                logger.debug(f"Successfully downlaoded metadata for {filename}")
                 return json.loads(content)
             else:
                 file_path = self.metadata_dir / f"{filename}_metadata.json"
@@ -99,6 +124,12 @@ class StorageHandler:
                         return json.load(f)
                     logger.error(f"Metadata file not found: {file_path}")
                 return None
+        except ResourceNotFoundError:
+            logger.warning(f"Metadata not found for file: {filename}")
+            return None
+        except AzureError as e:
+            logger.error(f"Azure storage error: {str(e)}")
+            raise
         except Exception as e:
             logger.error(f"Error retrieving metadata: {str(e)}")
             raise
