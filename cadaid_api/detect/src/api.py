@@ -123,7 +123,7 @@ class DetectionService:
     def __init__(self):
         self.metadata = {}
         self.cache = {}
-        self.storage = StorageHandler()
+        self.storage = StorageHandler(use_azure=os.getenv("USE_AZURE_STORAGE", "false").lower() == "true")
     
     def process_plantegning_instance(self, image_path, detected_text: TextInfo, text_detection: TextDetection, objdet_bbox):
         """
@@ -282,31 +282,28 @@ class DetectionService:
         def filename(self):
             return self._filename
             
-    async def process_file(self, uploaded_file):
+    async def process_file(self, uploaded_file: UploadFile):
+        """
+        Process a single uploaded file for detection and metadata generation.
+        """
         try:
             logger.info(f"Starting processing for file: {uploaded_file.filename}")
-            # Read file content once
+
+            # Read file content as bytes
             file_content = await uploaded_file.read()
             logger.debug(f"File content read, size: {len(file_content)} bytes")
 
-            # Create BytesIO for processing first
-            process_stream = BytesIO(file_content)
-            process_stream.name = uploaded_file.filename
-
-            # Create file-like object for storage
-            file_stream = self.UploadFileLike(file_content, uploaded_file.filename)
-
-            # Save file using StorageHandler
-            saved_file_path = await self.storage.save_file(file_stream, uploaded_file.filename)
+            # Save the uploaded file to storage (Azure or local)
+            saved_file_path = self.storage.save_file(file_content, uploaded_file.filename)
             logger.info(f"File saved to: {saved_file_path}")
 
-            # If using Azure,create temp file
+            # If using Azure, create a temporary local file for processing
             if self.storage.use_azure:
                 temp_dir = Path("/app/temp_files")
                 temp_dir.mkdir(exist_ok=True)
                 temp_path = temp_dir / uploaded_file.filename
 
-                # Download file from Azure
+                # Download the file from Azure Blob Storage
                 downloaded_content = await self.storage.get_file(uploaded_file.filename)
                 if downloaded_content:
                     with open(temp_path, "wb") as f:
@@ -316,10 +313,8 @@ class DetectionService:
                 else:
                     logger.error(f"Error downloading file from Azure: {uploaded_file.filename}")
                     raise HTTPException(status_code=500, detail="Error downloading file from Azure")
-                
 
-
-            # Process detection using local file path
+            # Process the detection pipeline using the saved file path
             detection_response = self.process_file_type(uploaded_file.filename, saved_file_path)
             logger.debug(f"Detection response received: {bool(detection_response)}")
 
@@ -328,10 +323,13 @@ class DetectionService:
                 Path(saved_file_path).unlink()
                 logger.info(f"Removed temporary file: {saved_file_path}")
 
+            # Handle detection response
             if detection_response:
+                # Cache the detection response for the file hash
                 file_hash = hashlib.md5(file_content).hexdigest()
                 self.cache[file_hash] = detection_response
 
+                # Prepare metadata for saving
                 metadata = {
                     "metadata": {
                         uploaded_file.filename: detection_response[0].convert_to_dict()
@@ -340,20 +338,17 @@ class DetectionService:
 
                 logger.debug("Saving metadata")
                 try:
-                    if self.storage.use_azure:
-                        logger.debug("Using Azure storage for metadata")
-                        self.storage.save_metadata(metadata, uploaded_file.filename)
-                    else:
-                        logger.debug("Using local storage for metadata")
-                        self.storage.save_metadata(metadata, uploaded_file.filename)  # No await here
-
+                    # Save metadata (Azure or local)
+                    self.storage.save_metadata(metadata, uploaded_file.filename)
                     logger.info("Metadata saved successfully")
                 except Exception as metadata_error:
                     logger.error(f"Metadata storage error: {str(metadata_error)}")
-                    raise
+                    raise HTTPException(status_code=500, detail="Error saving metadata")
 
+                # Return the first detection response
                 return detection_response[0]
 
+            # If no detection response, return an empty metadata object
             logger.warning("No detection response, returning empty metadata")
             return Metadata()
 
@@ -362,10 +357,9 @@ class DetectionService:
             raise HTTPException(status_code=500, detail=str(e))
 
 
+
     
 detection_service = DetectionService()
-
-max_workers = 6
 
 @app.post("/")
 async def detect_objects(uploaded_files: List[UploadFile], 
@@ -380,39 +374,38 @@ async def detect_objects(uploaded_files: List[UploadFile],
         
         # Debug logging
         logger.debug(f"Received files: {[f.filename for f in uploaded_files]}")
-        with ThreadPoolExecutor(max_workers=max_workers) as executor:
-            # Process each file individually
-            metadata_results = []
-            # Create a list of tasks to process files
-            tasks = []
-            for uploaded_file in uploaded_files:
-                if not uploaded_file.filename:
-                    logger.error("File missing filename")
-                    continue
-                
-                # Create task for each file
-                task = asyncio.create_task(detection_service.process_file(uploaded_file))
-                tasks.append(task)
+        
+        # Process each file individually
+        metadata_results = []
+        # Create a list of tasks to process files
+        tasks = []
+        for uploaded_file in uploaded_files:
+            if not uploaded_file.filename:
+                logger.error("File missing filename")
+                continue
+            
+            # Create task for each file
+            task = asyncio.create_task(detection_service.process_file(uploaded_file))
+            tasks.append(task)
 
-            # Wait for all tasks to complete
-            results = await asyncio.gather(*tasks, return_exceptions=True)
+        # Wait for all tasks to complete
+        results = await asyncio.gather(*tasks, return_exceptions=True)
 
-            # Process results
-            for result in results:
-                if isinstance(result, Exception):
-                    logger.error(f"Error processing file: {str(result)}")
-                    continue
-                if result:
-                    if isinstance(result, Metadata):
-                        metadata_results.append(result.convert_to_dict())
-                        detection_service.metadata[result.filename] = result.convert_to_dict()
-                    elif isinstance(result, list):
-                        for item in result:
-                            if isinstance(item, Metadata):
-                                metadata_results.append(item.convert_to_dict())
-                                detection_service.metadata[item.filename] = item.convert_to_dict()
-                
-    
+        # Process results
+        for result in results:
+            if isinstance(result, Exception):
+                logger.error(f"Error processing file: {str(result)}")
+                continue
+            if result:
+                if isinstance(result, Metadata):
+                    metadata_results.append(result.convert_to_dict())
+                    detection_service.metadata[result.filename] = result.convert_to_dict()
+                elif isinstance(result, list):
+                    for item in result:
+                        if isinstance(item, Metadata):
+                            metadata_results.append(item.convert_to_dict())
+                            detection_service.metadata[item.filename] = item.convert_to_dict()
+        
         end_time = time.time()
         elapsed_time = end_time - start_time
         logger.info(f"Detection completed in {elapsed_time} seconds")
@@ -421,10 +414,8 @@ async def detect_objects(uploaded_files: List[UploadFile],
             logger.error("No valid results found")
             raise HTTPException(status_code=400, detail="No valid results found")
         
-        uploaded_files = os.listdir(UPLOAD_DIRECTORY)
-       
         return metadata_results
-        #return json_response_converter(metadata_results)
+    
     except Exception as e:
         logger.error(f"Error during detection: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))

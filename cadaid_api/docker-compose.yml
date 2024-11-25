@@ -20,6 +20,7 @@ services:
       - ./shared:/app/shared
       - ./upload_files:/app/upload_files
       - ./metadata_files_store:/app/metadata_files_store
+      - ./logs:/app/logs
     ports:
       - "8000:8000"
     networks:
@@ -51,6 +52,7 @@ services:
       - ./shared:/app/shared
       - ./metadata_files_store:/app/metadata_files_store
       - ./upload_files:/app/upload_files
+      - ./logs:/app/logs
     ports:
       - "8001:8001"
     networks:

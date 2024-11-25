@@ -1,6 +1,6 @@
-const API_URL = 'http://cadaid-api.westeurope.azurecontainer.io'
-
-const API_KEY = import.meta.env.VITE_API_KEY
+// Load API URL and Key from environment variables
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost';
+const API_KEY = import.meta.env.VITE_API_KEY || 'local-test-key';
 
 console.log('API Configuration:', {
   url: API_URL,

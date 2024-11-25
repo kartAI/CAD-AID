@@ -80,35 +80,57 @@ class FeedbackModel(BaseModel):
 
 async def fetch_detection_results(filename: str):
     """
-    Get metadata from detection endpoint
+    Get metadata from detection endpoint.
     """
     try:
         async with httpx.AsyncClient() as client:
-            url = "http://cadaid-api.westeurope.azurecontainer.io/detect/detection-results"
+            # Set URL for production or local testing
+            url = "http://cadaid-api.westeurope.azurecontainer.io/detect/detection-results"  # Production
+            # url = "http://localhost/detect/detection-results"  # Uncomment for local testing
+
+            logger.debug(f"Fetching detection results from URL: {url}")
+
+            # Make the GET request
             response = await client.get(url)
+            logger.debug(f"HTTP response status: {response.status_code}")
+
+            # Raise HTTP error if the request failed
             response.raise_for_status()
-            
-            data = response.json()
-            
+
+            # Parse JSON response
+            try:
+                data = response.json()
+                logger.debug(f"Response JSON data: {data}")
+            except ValueError as e:
+                logger.error(f"Error decoding JSON response: {str(e)}")
+                raise HTTPException(status_code=500, detail="Invalid JSON response from detection endpoint")
+
+            # Validate presence of 'metadata' key
             if not data or 'metadata' not in data:
                 logger.error("No metadata found in detection results")
-                raise HTTPException(status_code=404, detail="No metadata found")
-                
+                raise HTTPException(status_code=404, detail="No metadata found in detection results")
+
+            # Check if the filename is present in metadata
             if filename not in data['metadata']:
                 logger.error(f"No results found for file: {filename}")
                 raise HTTPException(status_code=404, detail=f"No results found for file: {filename}")
-                
+
+            logger.info(f"Metadata found for file: {filename}")
             return data['metadata'][filename]
-            
-    except httpx.HTTPError as e:
+
+    except httpx.HTTPStatusError as e:
         logger.error(f"HTTP error while fetching detection results: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=e.response.status_code, detail="Error fetching detection results")
+    except httpx.RequestError as e:
+        logger.error(f"Request error while fetching detection results: {str(e)}")
+        raise HTTPException(status_code=500, detail="Request error fetching detection results")
     except Exception as e:
-        logger.error(f"Error fetching detection results: {str(e)}")
+        logger.error(f"Unexpected error in fetch_detection_results: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
+
 # Initialize storage handler
-storage = StorageHandler()
+storage = StorageHandler(use_azure=os.getenv("USE_AZURE_STORAGE", "false").lower() == "true")
 
 @app.post("/")
 async def feedback(
@@ -117,10 +139,12 @@ async def feedback(
     api_key: APIKeyHeader = Depends(get_api_key)
 ):
     try:
-        # Create task for metadata fetch
-        detection_results = await storage.get_metadata(filename)
+        # Fetch metadata
+        detection_results = storage.get_metadata(filename)
+        logger.debug(f"Detection results for {filename}: {detection_results}")
 
-        if not detection_results:
+        if detection_results is None:
+            logger.error(f"Metadata not found for file: {filename}")
             raise HTTPException(status_code=404, detail="Metadata not found")
 
         # Prepare feedback data
@@ -129,10 +153,12 @@ async def feedback(
             'metadata': detection_results,
             'timestamp': datetime.datetime.now().isoformat()
         }
+        logger.info(f"Prepared feedback data: {feedback_data}")
 
         # Save feedback metadata using StorageHandler
         feedback_path = f"feedback_{filename}"
         storage.save_metadata(feedback_data, feedback_path)
+        logger.info(f"Feedback metadata saved at path: {feedback_path} for file: {filename}")
 
         # Handle local file copy if not using Azure
         if not storage.use_azure:
@@ -149,8 +175,7 @@ async def feedback(
 
         # Clean up file if Azure is enabled
         if storage.use_azure:
-            delete_task = asyncio.create_task(storage.delete_file(filename))
-            await delete_task
+            storage.delete_file(filename)
 
         logger.info(f"Feedback saved for {filename}")
         return {"message": "Feedback submitted successfully", "feedback": feedback_data}
@@ -158,7 +183,6 @@ async def feedback(
     except Exception as e:
         logger.error(f"Error processing feedback: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
-
 
 # Endpoint to check log file
 @app.get("/logs/")
