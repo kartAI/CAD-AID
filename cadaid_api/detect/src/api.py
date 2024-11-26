@@ -130,18 +130,26 @@ class DetectionService:
         Perform segmentation to detect rooms and retrieve roomnames
         """
         
-        # filter all detected text by roomnames
-        room_names = text_detection.get_target_text(detected_text,room_pattern)
+        logger.info("Starting plantegning instance processing")
+
+        # First get room names
+        room_names = text_detection.get_target_text(detected_text, room_pattern)
+        logger.info(f"Found room names: {[room.text for room in room_names]}")
+
+        # Now find and append areas
+        room_names_with_areas = text_detection.append_areas_to_rooms(room_names, detected_text)
+        logger.info(f"Found room names with areas: {[room.text for room in room_names_with_areas]}")
+
         segmentation = SegmentationHandler()
         results = segmentation.run_segmentation(image_path)
 
         # Filter room names found in segmented masks
         text_filter = TextProximityFilter()
-        rooms_in_polygons = text_filter.filter_text_within_polygons(results, room_names)
+        rooms_in_polygons = text_filter.filter_text_within_polygons(results, room_names_with_areas)
 
-        room_names = text_filter.check_text_within_object(rooms_in_polygons,objdet_bbox)
+        final_room_names = text_filter.check_text_within_object(rooms_in_polygons, objdet_bbox)
         
-        return room_names
+        return final_room_names
     
     
     def create_detection_instance(self, image, drawing_type, bbox, conf) -> DrawingInstance:
@@ -154,6 +162,10 @@ class DetectionService:
         text_filter = TextProximityFilter()
        
         detected_text = text_detection.pytesseract_ocr(image)
+
+        # Add gnr/bnr detection for all drawing types
+        gnr_bnr_txt_info = text_detection.get_gnr_bnr(detected_text, gnr_bnr_pattern)
+        instance.gnr_bnr = text_filter.text_proximity_to_object(gnr_bnr_txt_info, bbox)
     
         if drawing_type  == DrawingType.FASADE.name.lower():
            

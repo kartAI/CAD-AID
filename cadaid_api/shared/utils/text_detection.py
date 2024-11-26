@@ -13,6 +13,10 @@ import re
 from shared.config import Config
 import math
 from .data_structures import TextInfo 
+from .regex_patterns import areal_pattern, room_pattern
+from shared.utils.logger import cadaid_logger
+
+logger = cadaid_logger(__name__)
 
 
 """"
@@ -82,11 +86,105 @@ class TextDetection():
     def get_room_names(self, detected_text, room_pattern: List[str]) -> List[TextInfo]:
         """
         Args:
-            patterns: List of room patterns to search for in the detected text.
+            detected_text: List of TextInfo objects containing all detected text
+            room_pattern: List of patterns to match room names
         Returns:
-            List of TextInfo objects containing the room
+            List of TextInfo objects containing rooms
         """
         return self.get_target_text(detected_text, room_pattern)
+    
+    def get_gnr_bnr(self, detected_text, patterns) -> List[TextInfo]:
+        """Get gnr/bnr from detected text"""
+        return self.get_target_text(detected_text, patterns)
+    
+    def append_areas_to_rooms(self, rooms: List[TextInfo], detected_text: List[TextInfo]) -> List[TextInfo]:
+        """
+        Append areas to room names if found nearby
+        """
+        logger.info("Starting area appending")
+        result = []
+        
+        # First find all areas in the detected text
+        areas = []
+        for text_info in detected_text:
+            area_match = re.search(areal_pattern, text_info.text)
+            if area_match:
+                # Get the full original text including the unit
+                original_area = area_match.group(0)
+                # Get just the number part
+                number_part = original_area.split('m')[0].strip()
+                
+                try:
+                    # Convert to float just for validation
+                    test_value = float(number_part.replace(',', '.'))
+                    
+                    # Check if it's likely a misread decimal (e.g., 45 when it should be 4.5)
+                    if test_value > 30:
+                        # Check if there's a larger room nearby that might justify this size
+                        is_large_room = False
+                        for room in rooms:
+                            if "stue" in room.text.lower() or "kjøkken" in room.text.lower():
+                                room_center = ((room.bbox[0][0] + room.bbox[2][0])/2, (room.bbox[0][1] + room.bbox[2][1])/2)
+                                area_center = ((text_info.bbox[0][0] + text_info.bbox[2][0])/2, (text_info.bbox[0][1] + text_info.bbox[2][1])/2)
+                                distance = ((room_center[0] - area_center[0])**2 + (room_center[1] - area_center[1])**2)**0.5
+                                if distance < 100:  # If area is close to a large room
+                                    is_large_room = True
+                                    break
+                        
+                        if not is_large_room and ',' not in number_part and '.' not in number_part:
+                            test_value = test_value / 10
+                            number_part = f"{test_value:.1f}".replace('.', ',')
+                    
+                    if test_value > 0 and test_value < 1000:  # Reasonable room size limits
+                        areas.append({
+                            'text': f"{number_part} m²",
+                            'bbox': text_info.bbox,
+                            'value': test_value
+                        })
+                        logger.info(f"Found valid area: {number_part} m²")
+                except ValueError:
+                    logger.warning(f"Invalid area value: {number_part}")
+        
+        logger.info(f"Total areas found: {len(areas)}")
+        
+        for room_info in rooms:
+            room_text = room_info.text
+            room_bbox = room_info.bbox
+            
+            # Find closest area by comparing bounding boxes
+            closest_area = None
+            min_distance = float('inf')
+            
+            for area in areas:
+                try:
+                    # Calculate distance between room bbox and area bbox
+                    room_center = ((room_bbox[0][0] + room_bbox[2][0])/2, (room_bbox[0][1] + room_bbox[2][1])/2)
+                    area_center = ((area['bbox'][0][0] + area['bbox'][2][0])/2, (area['bbox'][0][1] + area['bbox'][2][1])/2)
+                    
+                    # Calculate horizontal and vertical distances separately
+                    horizontal_dist = abs(room_center[0] - area_center[0])
+                    vertical_dist = abs(room_center[1] - area_center[1])
+                    
+                    # Prefer areas that are closer horizontally and slightly below or beside the room name
+                    if horizontal_dist < 100 and vertical_dist < 50:  # Adjust thresholds as needed
+                        total_distance = horizontal_dist + (vertical_dist * 2)  # Weight vertical distance more
+                        if total_distance < min_distance:
+                            min_distance = total_distance
+                            closest_area = area
+                    
+                except Exception as e:
+                    logger.error(f"Error calculating distance: {str(e)}")
+            
+            if closest_area:
+                combined_text = f"{room_text} ({closest_area['text']})"
+                logger.info(f"Combined room and area: {combined_text}")
+            else:
+                combined_text = room_text
+                logger.info(f"No area found for room: {room_text}")
+                
+            result.append(TextInfo(text=combined_text, bbox=room_bbox, probability=room_info.probability))
+        
+        return result
 
 class TextProximityFilter:
     def filter_text_within_polygons(self, seg_results, target_words: List[TextInfo]) -> List[TextInfo]:

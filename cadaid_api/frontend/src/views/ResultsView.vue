@@ -13,11 +13,11 @@ const activeFileIndex = ref(0)
 const showFeedback = ref(false)
 const feedback = ref({ correct: null })
 const toggleStates = ref({
-  documents: false,
-  rooms: false,
-  otherInfo: false,
-  documentFeedback: false,
-  roomFeedback: false,
+  documentsResults: false,
+  roomsResults: false,
+  otherInfoResults: false,
+  documentsFeedback: false,
+  roomsFeedback: false,
   otherInfoFeedback: false
 })
 const highlightedArea = ref(null)
@@ -40,9 +40,9 @@ const totalQuestions = computed(() => {
   let count = 0
   count += (currentFile.value.processedData.detections?.length || 0)
   count += (currentFile.value.processedData.room_names?.length || 0)
-  if (currentFile.value.processedData.cardinal_directions?.length) count++
-  if (currentFile.value.processedData.scales?.length) count++
-  if (currentFile.value.processedData.gnr_bnr_values?.length) count++
+  count += (currentFile.value.processedData.cardinal_directions?.length || 0)
+  count += (currentFile.value.processedData.scales?.length || 0)
+  count += (currentFile.value.processedData.gnr_bnr_values?.length || 0)
   return count
 })
 
@@ -73,7 +73,7 @@ const getUniqueKey = (item, type, index) => {
   } else if (type === 'room') {
     return `${filePrefix}room_${item.name}_${index}`
   } else if (type === 'other') {
-    return `${filePrefix}${item.field}_${item.value}`
+    return `${filePrefix}${item.field}_${item.value}_${index}`
   }
   return ''
 }
@@ -128,9 +128,19 @@ onMounted(() => {
           detections: file.detections || [],
           drawing_types: file.detections?.map(d => d.drawing_type) || [],
           room_names: file.detections?.flatMap(d => d.room_names || []) || [],
-          cardinal_directions: file.detections?.map(d => d.cardinal_direction).filter(Boolean) || [],
-          scales: file.detections?.flatMap(d => Array.isArray(d.scale) ? d.scale : [d.scale]).filter(Boolean) || [],
-          gnr_bnr_values: file.detections?.map(d => d.gnr_bnr).filter(Boolean) || []
+          cardinal_directions: file.detections?.flatMap(d => 
+          Array.isArray(d.cardinal_direction) ? d.cardinal_direction : [d.cardinal_direction]
+          ).filter(Boolean) || [],
+          scales: [...new Set(
+            file.detections?.flatMap(d =>
+              Array.isArray(d.scale) ? d.scale : [d.scale]
+            ).filter(Boolean) || []
+          )],
+          gnr_bnr_values: [...new Set(
+            file.detections?.map(d => 
+              Array.isArray(d.gnr_bnr) ? d.gnr_bnr[0] : d.gnr_bnr
+            ).filter(Boolean) || []
+          )]
       }
     }));
     console.log('Set results:', results.value)
@@ -443,8 +453,8 @@ watch(activeFileIndex, (newIndex, oldIndex) => {
           
           <!-- Documents Section -->
           <div v-if="hasDocuments" class="result-section">
-            <button class="toggle-button" @click="toggleStates.documents = !toggleStates.documents">
-              <svg :class="{ rotated: toggleStates.documents }" width="10" height="20" viewBox="0 0 10 20" fill="none">
+            <button class="toggle-button" @click="toggleStates.documentsResults = !toggleStates.documentsResults">
+              <svg :class="{ rotated: toggleStates.documentsResults }" width="10" height="20" viewBox="0 0 10 20" fill="none">
                 <path d="M2 2L8 10L2 18" stroke="#87A7A1" stroke-width="2"/>
               </svg>
               <span class="toggle-text">
@@ -452,7 +462,7 @@ watch(activeFileIndex, (newIndex, oldIndex) => {
               </span>
             </button>
             
-            <div v-if="toggleStates.documents" class="section-content">
+            <div v-if="toggleStates.documentsResults" class="section-content">
               <p class="result-text">
                 <span v-for="(detection, index) in currentFile?.processedData?.detections" :key="index">
                   <span class="field-name">"{{ detection.drawing_type }}"</span>
@@ -464,8 +474,8 @@ watch(activeFileIndex, (newIndex, oldIndex) => {
 
           <!-- Rooms Section (only show if drawing_type includes 'plantegning' AND has room names) -->
           <div v-if="hasRoomNames" class="result-section">
-            <button class="toggle-button" @click="toggleStates.rooms = !toggleStates.rooms">
-              <svg :class="{ rotated: toggleStates.rooms }" width="10" height="20" viewBox="0 0 10 20" fill="none">
+            <button class="toggle-button" @click="toggleStates.roomsResults = !toggleStates.roomsResults">
+              <svg :class="{ rotated: toggleStates.roomsResults }" width="10" height="20" viewBox="0 0 10 20" fill="none">
                 <path d="M2 2L8 10L2 18" stroke="#87A7A1" stroke-width="2"/>
               </svg>
               <span class="toggle-text">
@@ -473,7 +483,7 @@ watch(activeFileIndex, (newIndex, oldIndex) => {
               </span>
             </button>
             
-            <div v-if="toggleStates.rooms" class="section-content">
+            <div v-if="toggleStates.roomsResults" class="section-content">
               <p class="result-text">
                 <span v-for="(room, index) in currentFile?.processedData?.room_names" :key="index">
                   <span 
@@ -489,25 +499,34 @@ watch(activeFileIndex, (newIndex, oldIndex) => {
 
           <!-- Other Information Section (only show if any other info exists) -->
           <div v-if="hasOtherInfo" class="result-section">
-            <button class="toggle-button" @click="toggleStates.otherInfoFeedback = !toggleStates.otherInfoFeedback">
-              <svg :class="{ rotated: toggleStates.otherInfoFeedback }" width="10" height="20" viewBox="0 0 10 20" fill="none">
+            <button class="toggle-button" @click="toggleStates.otherInfoResults = !toggleStates.otherInfoResults">
+              <svg :class="{ rotated: toggleStates.otherInfoResults }" width="10" height="20" viewBox="0 0 10 20" fill="none">
                 <path d="M2 2L8 10L2 18" stroke="#87A7A1" stroke-width="2"/>
               </svg>
               <span class="toggle-text">Jeg fant også denne informasjonen:</span>
             </button>
             
-            <div v-if="toggleStates.otherInfoFeedback" class="section-content">
+            <div v-if="toggleStates.otherInfoResults" class="section-content">
               <div v-if="currentFile?.processedData?.cardinal_directions?.length" class="info-item">
-                <span class="info-label">Himmelretning: </span>
-                <span class="field-name">"{{ currentFile.processedData.cardinal_directions[0] }}"</span>
-              </div>
+                <span class="info-label">Himmelretninger: </span>
+                <span v-for="(direction, index) in currentFile.processedData.cardinal_directions" :key="index">
+                  <span class="field-name">"{{ direction }}"</span>
+                  <span v-if="index < currentFile.processedData.cardinal_directions.length - 1" class="conjunction"> og </span>
+                </span>
               <div v-if="currentFile?.processedData?.scales?.length" class="info-item">
                 <span class="info-label">Målestokk: </span>
-                <span class="field-name">"{{ currentFile.processedData.scales[0] }}"</span>
+                <span v-for="(scale, index) in currentFile.processedData.scales" :key="index">
+                  <span class="field-name">"{{ scale }}"</span>
+                  <span v-if="index < currentFile.processedData.scales.length - 1" class="conjunction"> og </span>
+                  </span>
+                </div>
               </div>
               <div v-if="currentFile?.processedData?.gnr_bnr_values?.length" class="info-item">
                 <span class="info-label">Gnr/Bnr (gårdsnummer/bruksnummer): </span>
-                <span class="field-name">"{{ currentFile.processedData.gnr_bnr_values[0] }}"</span>
+                <span v-for="(gnrBnr, index) in currentFile.processedData.gnr_bnr_values" :key="index">
+                  <span class="field-name">"{{ gnrBnr }}"</span>
+                  <span v-if="index < currentFile.processedData.gnr_bnr_values.length - 1" class="conjunction"> og </span>
+                </span>
               </div>
             </div>
           </div>
@@ -535,14 +554,14 @@ watch(activeFileIndex, (newIndex, oldIndex) => {
             
             <!-- Document Types Section -->
             <div v-if="hasDocuments" class="result-section">
-              <button class="toggle-button" @click="toggleStates.documentFeedback = !toggleStates.documentFeedback">
-                <svg :class="{ rotated: toggleStates.documentFeedback }" width="10" height="20" viewBox="0 0 10 20" fill="none">
+              <button class="toggle-button" @click="toggleStates.documentsFeedback = !toggleStates.documentsFeedback">
+                <svg :class="{ rotated: toggleStates.documentsFeedback }" width="10" height="20" viewBox="0 0 10 20" fill="none">
                   <path d="M2 2L8 10L2 18" stroke="#87A7A1" stroke-width="2"/>
                 </svg>
                 <span class="toggle-text">Tilbakemelding - tegningstyper</span>
               </button>
               
-              <div v-if="toggleStates.documentFeedback" class="section-content">
+              <div v-if="toggleStates.documentsFeedback" class="section-content">
                 <div v-for="(detection, index) in currentFile?.processedData?.detections" 
                      :key="getUniqueKey(detection, 'drawing', index)" 
                      class="feedback-item">
@@ -576,14 +595,14 @@ watch(activeFileIndex, (newIndex, oldIndex) => {
 
             <!-- Room Names Feedback (only show if drawing_type includes 'plantegning') -->
             <div v-if="currentFile?.processedData?.room_names?.length > 0" class="result-section">
-              <button class="toggle-button" @click="toggleStates.roomFeedback = !toggleStates.roomFeedback">
-                <svg :class="{ rotated: toggleStates.roomFeedback }" width="10" height="20" viewBox="0 0 10 20" fill="none">
+              <button class="toggle-button" @click="toggleStates.roomsFeedback = !toggleStates.roomsFeedback">
+                <svg :class="{ rotated: toggleStates.roomsFeedback }" width="10" height="20" viewBox="0 0 10 20" fill="none">
                   <path d="M2 2L8 10L2 18" stroke="#87A7A1" stroke-width="2"/>
                 </svg>
                 <span class="toggle-text">Tilbakemelding - rom navn</span>
               </button>
               
-              <div v-if="toggleStates.roomFeedback" class="section-content">
+              <div v-if="toggleStates.roomsFeedback" class="section-content">
                 <div v-for="(room, index) in currentFile?.processedData?.room_names" 
                      :key="getUniqueKey({ name: room }, 'room', index)" 
                      class="feedback-item">
@@ -625,43 +644,67 @@ watch(activeFileIndex, (newIndex, oldIndex) => {
               </button>
               
               <div v-if="toggleStates.otherInfoFeedback" class="section-content">
-                <div v-if="currentFile?.processedData?.cardinal_directions?.length" class="feedback-item">
+                <div v-for="(direction, index) in currentFile?.processedData?.cardinal_directions" :key="`direction_${index}`" class="feedback-item">
                   <p class="feedback-question">
-                    <span class="field-name">"{{ currentFile.processedData.cardinal_directions[0] }}"</span>
+                    <span class="field-name">"{{ direction }}"</span>
                     <span class="question-text"> - Er dette riktig himmelretning?</span>
                   </p>
                   <div class="feedback-buttons">
                     <Button 
-                      :variant="getFeedbackStatus({ field: 'cardinal_directions', value: currentFile.processedData.cardinal_directions[0], isCorrect: true }) ? 'success' : 'outline'"
-                      @click="handleFeedback({ field: 'cardinal_directions', value: currentFile.processedData.cardinal_directions[0] }, 'other', 0, true)"
+                      variant="outline"
+                      :class="getButtonClasses('yes', { field: 'cardinal_directions', value: direction }, 'other', index)"
+                      @click="handleFeedback({ field: 'cardinal_directions', value: direction }, 'other', index, true)"
                     >
                       Ja
                     </Button>
                     <Button 
-                      :variant="getFeedbackStatus({ field: 'cardinal_directions', value: currentFile.processedData.cardinal_direction[0], isCorrect: false }) ? 'error' : 'outline'"
-                      @click="handleFeedback({ field: 'cardinal_directions', value: currentFile.processedData.cardinal_direction[0] }, 'other', 0, false )"
+                      variant="outline"
+                      :class="getButtonClasses('no', { field: 'cardinal_directions', value: direction }, 'other', index)"
+                      @click="handleFeedback({ field: 'cardinal_directions', value: direction }, 'other', index, false)"
                     >
                       Nei
                     </Button>
                   </div>
                 </div>
-                <div v-if="currentFile?.processedData?.scales?.length" class="feedback-item">
+                <div v-for="(scale, index) in currentFile?.processedData?.scales" :key="`scale_${index}`" class="feedback-item">
                   <p class="feedback-question">
-                    <span class="field-name">"{{ currentFile.processedData.scales[0] }}"</span>
+                    <span class="field-name">"{{ scale }}"</span>
                     <span class="question-text"> - Er dette riktig målestokk?</span>
                   </p>
                   <div class="feedback-buttons">
                     <Button
                       variant="outline"
-                      :class="getButtonClasses('yes', { field: 'scales', value: currentFile.processedData.scales[0] }, 'other', 0)"
-                      @click="handleFeedback({ field: 'scales', value: currentFile.processedData.scales[0] }, 'other', 0, true)"
+                      :class="getButtonClasses('yes', { field: 'scales', value: scale }, 'other', index)"
+                      @click="handleFeedback({ field: 'scales', value: scale }, 'other', 0, true)"
                     >
                       Ja
                     </Button>
                     <Button
                       variant="outline"
-                      :class="getButtonClasses('no', { field: 'scales', value: currentFile.processedData.scales[0] }, 'other', 0)"
-                      @click="handleFeedback({ field: 'scales', value: currentFile.processedData.scales[0] }, 'other', 0, false)"
+                      :class="getButtonClasses('no', { field: 'scales', value: scale }, 'other', 0)"
+                      @click="handleFeedback({ field: 'scales', value: scale }, 'other', 0, false)"
+                    >
+                      Nei
+                    </Button>
+                  </div>
+                </div>
+                <div v-for="(gnrBnr, index) in currentFile?.processedData?.gnr_bnr_values" :key="`gnr_bnr_${index}`" class="feedback-item">
+                  <p class="feedback-question">
+                    <span class="field-name">"{{ gnrBnr }}"</span>
+                    <span class="question-text"> - Er dette riktig Gnr/Bnr?</span>
+                  </p>
+                  <div class="feedback-buttons">
+                    <Button
+                      variant="outline"
+                      :class="getButtonClasses('yes', { field: 'gnr_bnr_values', value: gnrBnr }, 'other', index)"
+                      @click="handleFeedback({ field: 'gnr_bnr_values', value: gnrBnr }, 'other', index, true)"
+                    >
+                      Ja
+                    </Button>
+                    <Button
+                      variant="outline"
+                      :class="getButtonClasses('no', { field: 'gnr_bnr_values', value: gnrBnr }, 'other', index)"
+                      @click="handleFeedback({ field: 'gnr_bnr_values', value: gnrBnr }, 'other', index, false)"
                     >
                       Nei
                     </Button>
@@ -673,7 +716,7 @@ watch(activeFileIndex, (newIndex, oldIndex) => {
         </div>
         <div class="action-buttons">
           <Button 
-            :variant="!hasAnyContent || allQuestionsAnswered ? 'primary' : 'outline'"
+            variant="!hasAnyContent || allQuestionsAnswered ? 'primary' : 'outline'"
             @click="!hasAnyContent || allQuestionsAnswered ? submitFeedback() : nextFile()"
           >
             {{ submitButtonText }}
