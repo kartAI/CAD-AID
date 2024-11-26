@@ -54,8 +54,8 @@ const answeredQuestions = computed(() => {
 })
 
 const allQuestionsAnswered = computed(() => {
-  if (!currentFile.value?.processedData) return true
-  return answeredQuestions.value === totalQuestions.value && totalQuestions.value > 0
+  if (!currentFile.value?.processedData) return false;
+  return answeredQuestions.value >= totalQuestions.value && totalQuestions.value > 0;
 })
 
 const totalFiles = computed(() => results.value.length)
@@ -319,26 +319,24 @@ const getFeedbackButtonClass = (buttonType, { type, room, field, value }) => {
 const completedFiles = computed(() => {
   return results.value.map((file, index) => {
     if (index < activeFileIndex.value) {
-      return true
+      return true;
     }
     
     if (index === activeFileIndex.value) {
       if (!hasFileContent(file)) {
-        return true
+        return true;
       }
       
-      const filePrefix = `file_${file.filename}_`
       const fileQuestions = Object.keys(feedbackProgress.value)
-        .filter(key => key.startsWith(filePrefix))
-        .length
+        .filter(key => key.startsWith(`file_${file.filename}_`))
+        .length;
       
-      const totalFileQuestions = getFileTotalQuestions(file)
-      return fileQuestions === totalFileQuestions
+      return fileQuestions === getFileTotalQuestions(file);
     }
     
-    return false
-  })
-})
+    return false;
+  });
+});
 
 const submitButtonText = computed(() => {
   if (!hasAnyContent.value) {
@@ -513,13 +511,13 @@ watch(activeFileIndex, (newIndex, oldIndex) => {
                   <span class="field-name">"{{ direction }}"</span>
                   <span v-if="index < currentFile.processedData.cardinal_directions.length - 1" class="conjunction"> og </span>
                 </span>
+              </div>
               <div v-if="currentFile?.processedData?.scales?.length" class="info-item">
                 <span class="info-label">Målestokk: </span>
                 <span v-for="(scale, index) in currentFile.processedData.scales" :key="index">
                   <span class="field-name">"{{ scale }}"</span>
                   <span v-if="index < currentFile.processedData.scales.length - 1" class="conjunction"> og </span>
-                  </span>
-                </div>
+                </span>
               </div>
               <div v-if="currentFile?.processedData?.gnr_bnr_values?.length" class="info-item">
                 <span class="info-label">Gnr/Bnr (gårdsnummer/bruksnummer): </span>
@@ -1450,12 +1448,14 @@ watch(activeFileIndex, (newIndex, oldIndex) => {
 }
 
 .yes-button:hover {
-  background-color: var(--success-light) !important;
+  background-color: rgba(36, 189, 118, 0.1) !important;
 }
 
 .yes-button.selected {
-  background-color: var(--success-color) !important;
-  color: white !important;
+  background-color: rgba(36, 189, 118, 0.2) !important;
+  border-color: var(--success-color) !important;
+  color: var(--success-color) !important;
+  font-weight: bold !important;
 }
 
 .no-button {
@@ -1464,12 +1464,14 @@ watch(activeFileIndex, (newIndex, oldIndex) => {
 }
 
 .no-button:hover {
-  background-color: var(--error-light) !important;
+  background-color: rgba(255, 77, 79, 0.1) !important;
 }
 
 .no-button.selected {
-  background-color: var(--error-color) !important;
-  color: white !important;
+  background-color: rgba(255, 77, 79, 0.2) !important;
+  border-color: var(--error-color) !important;
+  color: var(--error-color) !important;
+  font-weight: bold !important;
 }
 
 .feedback-buttons {
@@ -1639,7 +1641,9 @@ watch(activeFileIndex, (newIndex, oldIndex) => {
 
 .action-buttons button:hover {
   transform: translateY(-2px);
-  box-shadow: 0 6px 16px rgba(36, 189, 118, 0.3);
+  box-shadow: 
+    0 6px 16px rgba(36, 189, 118, 0.3),
+    0 0 0 1px rgba(36, 189, 118, 0.2);
 }
 
 .panel-title {
@@ -1783,16 +1787,18 @@ watch(activeFileIndex, (newIndex, oldIndex) => {
 
 /* Enhanced action buttons */
 .action-buttons button {
-  background: linear-gradient(135deg, #24BD76, #1ea365);
+  background: linear-gradient(135deg, #24BD76, #3BAF8F);
   border: none;
   padding: 12px 24px;
   border-radius: 8px;
-  color: white;
-  font-weight: 500;
+  color: #2E2D30;
+  font-family: 'Noto Sans Display', sans-serif;
+  font-weight: 700;
   transition: all 0.3s ease;
-  box-shadow: 
-    0 4px 12px rgba(36, 189, 118, 0.2),
-    0 0 0 1px rgba(36, 189, 118, 0.1);
+  box-shadow: 0 4px 12px rgba(36, 189, 118, 0.2);
+  width: 265.3px;
+  height: 52.74px;
+  font-size: 12pt;
 }
 
 .action-buttons button:hover {

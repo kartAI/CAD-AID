@@ -59,9 +59,21 @@ const props = defineProps({
 
 /* Variants */
 .button--primary {
-  background: var(--primary-color);
-  color: white;
+  background: linear-gradient(135deg, #24BD76, #3BAF8F);
+  color: #2E2D30;
+  font-family: 'Noto Sans Display', sans-serif;
+  font-weight: 700;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 12px rgba(36, 189, 118, 0.2);
+  width: 265.3px;
+  height: 52.74px;
+  font-size: 12pt;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 8px;
 }
+
+
 
 .button--primary:hover:not(:disabled) {
   background: var(--primary-dark);

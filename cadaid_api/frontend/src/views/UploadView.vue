@@ -207,23 +207,27 @@ const removeFile = (file) => {
 <style scoped>
 .upload {
   min-height: 100vh;
-  background: linear-gradient(135deg, #f0f9f6 0%, #e6f4ef 100%);
+  background: linear-gradient(135deg, #DDF3EB 0%, #c5e9db 100%);
   padding-top: 115px;
   display: flex;
   align-items: center;
+  position: relative;
 }
 
 .upload-container {
   width: 1142px;
-  height: 480px;
+  height: 444px;
   background: linear-gradient(135deg, #ffffff 0%, #f8fdfb 100%);
-  border-radius: 12px;
-  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.08);
+  border-radius: 5px;
+  box-shadow: 4px 4px 20px rgba(46, 45, 48, 0.5), 0 0 30px rgba(36, 189, 118, 0.1);
   display: flex;
   justify-content: space-between;
-  padding: 32px;
+  padding: 35px 40px 40px 40px;
   margin: 40px auto;
   transition: transform 0.3s ease;
+  position: relative;
+  box-sizing: border-box;
+  animation: fadeIn 0.5s ease-out;
 }
 
 .upload-section, .files-section {
