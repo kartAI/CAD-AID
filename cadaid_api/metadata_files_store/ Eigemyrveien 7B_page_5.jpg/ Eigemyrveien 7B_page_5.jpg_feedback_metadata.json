@@ -1,0 +1,41 @@
+{
+    "user_response": true,
+    "metadata": {
+        "filename": " Eigemyrveien 7B_page_5.jpg",
+        "detections": [
+            {
+                "drawing_type": "plantegning",
+                "bbox": [
+                    560.5980224609375,
+                    545.2890014648438,
+                    1083.4794921875,
+                    1235.3594970703125
+                ],
+                "confidence": 0.899703323841095,
+                "cardinal_direction": null,
+                "scale": null,
+                "room_names": [],
+                "gnr_bnr": null
+            },
+            {
+                "drawing_type": "plantegning",
+                "bbox": [
+                    604.7430419921875,
+                    1376.6798095703125,
+                    1042.7646484375,
+                    1910.7054443359375
+                ],
+                "confidence": 0.8423338532447815,
+                "cardinal_direction": null,
+                "scale": null,
+                "room_names": [
+                    "bod",
+                    "soverom,"
+                ],
+                "gnr_bnr": null
+            }
+        ],
+        "store": {}
+    },
+    "timestamp": "2025-01-02T10:00:22.631518"
+}

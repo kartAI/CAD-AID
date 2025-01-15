@@ -30,9 +30,7 @@ from shared.utils.regex_patterns import (
     areal_pattern
 )
 
-from shared.utils.json_response_converter import json_response_converter
 #from shared.auth import get_api_key
-
 
 
 # Set up logging
@@ -69,9 +67,10 @@ app = FastAPI(lifespan=lifespan,
                 "name": "Detection",
                 "description": "API for object detection and text extraction using CADAID system"
               }],
-             # swagger_ui_init_oauth={
-             #     "apiKeyName": "X-API-KEY"
-            #  }
+             
+              #swagger_ui_init_oauth={
+              #    "apiKeyName": "X-API-KEY"
+              #}
             )
 
 
@@ -129,16 +128,18 @@ class DetectionService:
         
         # filter all detected text by roomnames
         room_names = text_detection.get_target_text(detected_text,room_pattern)
+     
         segmentation = SegmentationHandler()
         results = segmentation.run_segmentation(image_path)
 
         # Filter room names found in segmented masks
         text_filter = TextProximityFilter()
-        rooms_in_polygons = text_filter.filter_text_within_polygons(results, room_names)
+        rooms_in_polygons, num_rooms = text_filter.filter_text_within_polygons(results, room_names)
+        
 
         room_names = text_filter.check_text_within_object(rooms_in_polygons,objdet_bbox)
         
-        return room_names
+        return room_names, num_rooms
     
     
     def create_detection_instance(self, image, drawing_type, bbox, conf) -> DrawingInstance:
@@ -150,15 +151,26 @@ class DetectionService:
         text_detection = TextDetection()
         text_filter = TextProximityFilter()
        
-        detected_text = text_detection.pytesseract_ocr(image)
+        detected_text = text_detection.perform_ocr(image)
+    
     
         if drawing_type  == DrawingType.FASADE.name.lower():
            
             cardinal_direction_txt_info = text_detection.get_cardinal_direction(detected_text, cardinal_direction_pattern)
-            instance.cardinal_direction = text_filter.text_proximity_to_object(cardinal_direction_txt_info, bbox)
+            all_text = []
+            for text_info in cardinal_direction_txt_info:
+                cardinal = text_info.text
+                all_text.append(cardinal)
+            
+            instance.cardinal_direction = all_text
 
             scale_txt_info = text_detection.get_scale(detected_text, scale_pattern)
-            instance.scale = text_filter.text_proximity_to_object(scale_txt_info, bbox)
+            all_scale = []
+            for text_info in scale_txt_info:
+                scale = text_info.text
+                all_scale.append(scale)
+            instance.scale = all_scale
+            
         
         elif drawing_type == DrawingType.SNITT.name.lower():
             scale_txt_info = text_detection.get_scale(detected_text,scale_pattern)
@@ -172,17 +184,8 @@ class DetectionService:
         elif drawing_type == DrawingType.PLANTEGNING.name.lower():
             try:
                 
-                instance.room_names = self.process_plantegning_instance(image, detected_text, text_detection, bbox)
-                if not instance.room_names:
-                    # Try rotating image if text is vertical for OCR
-                    for i in range(4):
-                        img = cv2.rotate(image, cv2.ROTATE_90_CLOCKWISE)
-                        instance.room_names = self.process_plantegning_instance(img, detected_text, text_detection, bbox)
-
-                        if instance.room_names:
-                            break
-
-
+                instance.room_names, instance.num_of_rooms = self.process_plantegning_instance(image, detected_text, text_detection, bbox)
+                
             except Exception as e:
                     logger.error(f"Error processing plantegning instance: {str(e)}")
         
@@ -195,11 +198,15 @@ class DetectionService:
         """
         start_time = time.time()
         preprocess_start = time.time()
+
         
         obj_det = ObjectDetectionHandler()
         preprocess_end = time.time()
 
         inference_start = time.time()
+        text_detection = TextDetection()
+        #image = text_detection.check_orientation(image)
+
         drawing_types, bboxes, confidences = obj_det.run_detection(image)
         inference_end = time.time()
 

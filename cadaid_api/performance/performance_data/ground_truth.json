@@ -1,0 +1,68 @@
+[
+    {
+        "filename": " Eigemyrveien 7B_page_5.jpg",
+        "ground_truth": {
+            "drawing_type": "plantegning",
+            "num_of_rooms": 7,
+            "room_names": ["soverom"]
+
+        }
+         
+    },
+    {
+        "filename": "Bronsekarveien17_plan_page_2.jpg",
+        "ground_truth": {
+            "drawing_type": "plantegning",
+            "num_of_rooms": 7,
+            "room_names": ["stue", "bad", "soverom", "soverom", "gang", "walk-in", "terasse"]
+        }
+    },
+    {
+        "filename": "Draugveien 173B_snitt_page_2.jpg",
+        "ground_truth": {
+            "drawing_type":"plantegning",
+            "num_of_rooms": 6,
+            "room_names": ["bod", "vask", "hall", "bad", "sov", "stue/kjøkken"]
+        }
+    },
+    {
+        "filename": "fasade37.jpg",
+        "ground_truth": {
+            "drawing_type": "fasade",
+            "cardinal_direction": ["øst", "nord", "vest", "sør"],
+            "scale": ["1:100"]
+        }
+    },
+    {
+        "filename": "gnr-bnr 28-3638_fasade_sør_page_1.jpg",
+        "ground_truth": {
+            "drawing_type": "fasade",
+            "cardinal_direction":["sør"],
+            "scale": ["1:100"]
+        }
+    },
+    {
+        "filename": "Vardåsveien 146_fasade2_page_1.jpg",
+        "ground_truth":{
+            "drawing_type":"fasade",
+            "cardinal_direction":["vest","nord"],
+            "scale":["1:100"]
+        }
+    },
+    {
+        "filename": "Røsstadveien 244_fasade_page_1.jpg",
+        "ground_truth":{
+            "drawing_type":"fasade",
+            "cardinal_direction":["vest", "nord"],
+            "scale": ["1:100"]
+        }
+    },
+    {
+        "filename": "gnr-bnr 24-358_plan_2_page_1.jpg",
+        "ground_truth":{
+            "drawing_type":"plantegning",
+            "num_of_rooms": 8,
+            "room_names":["sov/kontor", "kjøkk/stue", "bad", "sov", "sov","bad", "sov/kontor", "kjøkk/stue"]
+        }
+    }
+]

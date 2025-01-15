@@ -1,0 +1,24 @@
+{
+  "0": ["kjøkken"],
+  "1": ["stue"],
+  "2": ["soverom"],
+  "3": ["bad"],
+  "4": ["gang"],
+  "5": ["bod"],
+  "6": ["kontor"],
+  "7": ["spisestue"],
+  "8": ["vaskerom"],
+  "9": ["garasje"],
+  "10": ["loft"],
+  "11": ["kjeller"],
+  "12": ["balkong"],
+  "13": ["terrasse"],
+  "14": ["trapp"],
+  "15": ["garderobe"],
+  "16": ["vask"],
+  "17": ["hall"],
+  "18": ["stue/kjøkken"],
+  "19": ["kjøkk/stue"]
+
+
+}

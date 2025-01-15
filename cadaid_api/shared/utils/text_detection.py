@@ -10,6 +10,7 @@ import easyocr
 import pytesseract
 import cv2
 import re
+import imutils
 from shared.config import Config
 import math
 from .data_structures import TextInfo 
@@ -23,10 +24,19 @@ Core functionality for OCR extraction and text detection
 		
 class TextDetection():
     def __init__(self ):
-        
+        self.config = Config()
         self.target_words: List[TextInfo] = []
         self.detected_text = []
-        
+        self.model = self.config.OCR_MODEL
+    
+    def perform_ocr(self,image):
+        if self.model == "easy_ocr":
+            return self.easy_ocr(image)
+        elif self.model == "pytesseract_ocr":
+            return self.pytesseract_ocr(image)
+        else:
+            raise ValueError(f"Unsupported OCR model: {self.model}")
+
 
     def easy_ocr(self,image):
         detected_text = []
@@ -40,8 +50,9 @@ class TextDetection():
     
     def pytesseract_ocr(self, image) -> List[TextInfo]:
         detected_text = []
-        custom_config = r'--oem 3 --psm 11' # TODO: Move this to a config file
-        results = pytesseract.image_to_data(image, config=custom_config, lang='eng', output_type = pytesseract.Output.DICT)
+        #custom_config = r'--oem 3 --psm 11' # TODO: Move this to a config file
+        custom_config = r'--oem 3 --psm 11'
+        results = pytesseract.image_to_data(image, config=custom_config, lang='nor', output_type = pytesseract.Output.DICT)
         for i in range(len(results['text'])):
             text = results['text'][i]
             if text.strip():
@@ -52,6 +63,14 @@ class TextDetection():
                 detected_text.append(text_info)
 
         return detected_text
+    
+    def check_orientation(self,image):
+        rgb = cv2.cvtColor(image,cv2.COLOR_BGR2RGB)
+        results = pytesseract.image_to_osd(rgb, config='--psm 0 -c min_characters_to_try=5', lang='nor', output_type = pytesseract.Output.DICT)
+        orientation = results["orientation"]
+        rotated = imutils.rotate_bound(image,angle=results["rotate"])
+        return rotated
+        
 
 
     def get_target_text(self,detected_text: List[TextInfo], patterns: List[str])-> List[TextInfo]:
@@ -102,7 +121,7 @@ class TextProximityFilter:
                 polygon = Polygon(mask)
                 text_inside_poly.extend(self._find_text_in_polygons(polygon, target_words))
         
-        return text_inside_poly
+        return text_inside_poly, num_rooms
     
     def check_text_within_object(self, text_inside_poly: List[TextInfo], objdet_bbox) -> List[str]:
         """
@@ -146,21 +165,27 @@ class TextProximityFilter:
         min_distance = float('inf')
         
         closest_text = None
-        cx_obj, cy_obj = self._calculate_centroid_objectdet(objdet_bbox)
+        centroid_obj = self._calculate_centroid_objectdet(objdet_bbox)
 
         for text_info in detected_text:
             text_bbox = text_info.bbox
+            
+            centroid_text = self._calculate_centroid(text_bbox)
+            distance = self._calculate_distance(centroid_text,centroid_obj)
 
-            cx_text,cy_text = self._calculate_centroid(text_bbox)
-            distance = math.sqrt((cx_text - cx_obj)**2 + (cy_text - cy_obj)**2)
             text = text_info.text
+    
             if distance < min_distance:
                 min_distance = distance
                 closest_text = text
-                
+
         
         return [closest_text]
-        
+    
+    def _calculate_distance(self,centroid_txt, centroid_obj):
+        return ((centroid_txt[0]-centroid_obj[0])**2 + (centroid_txt[1]-centroid_obj[1])**2)
+
+
         
     def _calculate_centroid_objectdet(self, objdet_bbox):
         x_min,y_min,x_max,y_max = objdet_bbox
@@ -168,7 +193,7 @@ class TextProximityFilter:
         cx = (x_min + x_max) / 2
         cy = (y_min + y_max) /2
 
-        return cx, cy
+        return (cx, cy)
     
     def _calculate_centroid(self, text_boxes: List[List[float]]):
         """
@@ -178,7 +203,8 @@ class TextProximityFilter:
         cx = (text_boxes[0][0] + text_boxes[2][0]) / 2
         cy = (text_boxes[0][1] + text_boxes[2][1]) / 2
 
-        return cx,cy
+        #return cx,cy
+        return (cx,cy)
 		
 
 

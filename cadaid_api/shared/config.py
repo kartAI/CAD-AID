@@ -1,6 +1,10 @@
 import os
 from dotenv import load_dotenv
-#class Config():
+
+
+
+#OCR_MODEL = config("OCR_MODEL", default = "pytesseract_ocr")
+
 class Config:
     def __init__(self):
         # Load environment variables from .env.dev file
@@ -18,5 +22,6 @@ class Config:
         self.SEGMENTATION_CONFIDENCE = float(os.getenv('SEGMENTATION_CONFIDENCE', 0.6))
 
         # Configuration for pytesseract
+        self.OCR_MODEL = os.getenv("OCR_MODEL")
         PYTESSERACT_NUMBERS = r'--oem 3 --psm 11 -c tessedit_char_whitelist=0123456789.,m '
      

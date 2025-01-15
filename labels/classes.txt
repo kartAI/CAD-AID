@@ -1,5 +1,0 @@
-fasade
-plantegning
-situasjonskart
-snitt
-tekst

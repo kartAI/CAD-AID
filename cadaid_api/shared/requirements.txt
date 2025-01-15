@@ -11,5 +11,7 @@ python-multipart
 python-dotenv
 fastapi-security
 pytesseract
-tesseract
+#tesseract
 httpx
+imutils
+spacy ==3.6.0

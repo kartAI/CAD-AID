@@ -2,8 +2,8 @@ import sys
 import os
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 from ultralytics import YOLO
-from shared.config import Config
 
+from shared.config import Config
 
 """
 Core functionality of the models wich includes training and predictions
@@ -78,4 +78,3 @@ class Segmentation(ModelsManager):
                           stream=True, 
                           visualize=False, 
                           conf=self.model_conf)
-

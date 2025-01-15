@@ -10,6 +10,7 @@ services:
       - ./detect/src:/app/detect/src # mount detect api code
       - ./shared:/app/shared
       - ./upload_files:/app/upload_files
+      - ./shared/.env.dev:/app/.env.dev
     environment:
       - LOG_LEVEL=debug
       - PYTHONPATH=/app
@@ -31,6 +32,7 @@ services:
       - ./shared:/app/shared
       - ./metadata_files_store:/app/metadata_files_store
       - ./upload_files:/app/upload_files
+      - ./shared/.env.dev:/app/.env.dev
     environment:
       - LOG_LEVEL=debug
       - PYTHONPATH=/app
@@ -38,6 +40,30 @@ services:
     command: uvicorn feedback.src.api:app --host 0.0.0.0 --port 8001 --reload
     ports:
       - "8001:8001"
+    networks:
+      - cadaid_network
+    depends_on:
+      - detect
+
+  performance:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+
+    volumes:
+      - ./performance/src:/app/performance/src # mount feedback api code
+      - ./performance/performance_data:/app/performance_data
+      - ./shared:/app/shared
+      - ./shared/.env.dev:/app/.env.dev
+      - ./detect/src:/app/detect/src
+    
+    environment:
+      - LOG_LEVEL=debug
+      - PYTHONPATH=/app
+    
+    command: uvicorn performance.src.api:app --host 0.0.0.0 --port 8002 --reload
+    ports:
+      - "8002:8002"
     networks:
       - cadaid_network
     depends_on:
