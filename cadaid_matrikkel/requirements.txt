@@ -1,0 +1,17 @@
+opencv-python
+pdf2image
+Pillow
+ultralytics
+easyocr
+numpy
+shapely
+fastapi
+uvicorn
+python-multipart
+python-dotenv
+pytesseract
+httpx
+imutils
+gradio
+fuzzywuzzy
+python-Levenshtein

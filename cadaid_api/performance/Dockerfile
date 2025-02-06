@@ -27,7 +27,6 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY performance/src /app/src
 COPY shared/ /app/shared
 
-RUN python -m spacy download nb_core_news_sm
 
 EXPOSE 8002
 

@@ -1,0 +1,9 @@
+soverom
+sov
+stue
+kontor
+loftstue
+kjellerstue
+lekerom
+pc-rom
+trimrom

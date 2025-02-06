@@ -10,8 +10,8 @@ WORKDIR /app
 # Install system dependencies
 COPY shared/requirements.txt /app/
 RUN pip install --upgrade pip && \
-    #pip install --no-cache-dir -r /app/requirements.txt
-    pip install --no-cache-dir -r requirements.txt
+    pip install --no-cache-dir -r requirements.txt  &&\
+    pip install gradio 
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
 build-essential \
@@ -35,8 +35,7 @@ RUN apt-get update && apt-get install -y \
     tesseract-ocr-nor \
     libtesseract-dev 
 
-RUN pip install httpx
-
+#RUN pip install httpx
 
 
 # Copy the shared directory before the volume is mounted
@@ -52,5 +51,5 @@ RUN mkdir -p /app/metadata_files_store /app/
 
 
 # Expose port for the API
-EXPOSE 8000 8001 8002
+EXPOSE 8000 8001 8002 7860
 

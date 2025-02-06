@@ -69,6 +69,20 @@ services:
     depends_on:
       - detect
 
+  gradio-frontend:
+    build: 
+      context: .
+      dockerfile: Dockerfile.dev
+    
+    volumes:
+      - ./gradio-frontend/src:/app
+
+    command: python /app/app.py 
+    ports:
+      - 0.0.0.0:"7860:7860"
+    networks:
+      - cadaid_network
+
 networks:
   cadaid_network:
     driver: bridge

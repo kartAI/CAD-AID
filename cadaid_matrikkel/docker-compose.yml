@@ -1,0 +1,29 @@
+
+services:
+  api:
+    build:
+      context: . 
+      dockerfile: Dockerfile 
+
+    ports:
+      - "8000:8000"  
+    volumes:
+      - .:/app 
+      #- ./app:/app
+      - ./upload_files:/app/upload_files
+  
+  
+  
+  gradio:
+    build:
+      context: .
+      dockerfile: Dockerfile.gradio
+    ports:
+      - "7860:7860" 
+    volumes:
+      #- .:/app
+      - ./upload_files:/app/upload_files
+      
+    depends_on:
+      - api 
+    
