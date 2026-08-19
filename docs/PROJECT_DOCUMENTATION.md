@@ -204,8 +204,46 @@ Both are fine-tuned iteratively — each new training run in `training/train_yol
 
 ### 5.2 Dataset
 
-- **`data/`** (detection): ~1,134 images total (911 train / 107 test / 116 val), YOLO bbox-format labels. Images are real Norwegian building-permit drawing pages (filenames are street addresses / gnr-bnr cadastral IDs / PDF page names), produced by rasterizing submitted PDFs.
-- **`data_seg/`** (segmentation): ~513 images (355 train / 110 test / 48 val — test set is largely unlabeled, likely qualitative-only), YOLO polygon-format labels, presumably a re-annotated subset of the `plantegning` images from `data/`.
+Images in both datasets are real Norwegian building-permit drawing pages (filenames are street addresses / gnr-bnr cadastral IDs / PDF page names), produced by rasterizing submitted PDFs via `training/dataPrep/convertFromPDF.py`. Counts below were computed directly from the label files (not just image counts).
+
+#### `data/` — object detection (drawing-type classification), 513 MB on disk
+
+Per-class instance counts (one label line = one bounding box):
+
+| Class | train | test | val | **Total instances** | **Share** |
+|---|--:|--:|--:|--:|--:|
+| `fasade` (facade/elevation) | 546 | 57 | 77 | **680** | 42.3% |
+| `plantegning` (floor plan) | 332 | 45 | 57 | **434** | 27.0% |
+| `snitt` (section) | 248 | 19 | 32 | **299** | 18.6% |
+| `situasjonskart` (site map) | 154 | 19 | 22 | **195** | 12.1% |
+| **All classes** | **1,280** | **140** | **188** | **1,608** | 100% |
+
+Split-level file stats:
+
+| Split | Images | Label files | Instances | Images w/ empty label (background) | Images w/ no label file |
+|---|--:|--:|--:|--:|--:|
+| train | 911 | 906 | 1,280 | 120 | 5 |
+| test | 107 | 106 | 140 | 21 | 1 |
+| val | 116 | 116 | 188 | 13 | 0 |
+| **Total** | **1,134** | **1,128** | **1,608** | **154** | **6** |
+
+- Class balance is uneven — `fasade` outnumbers `situasjonskart` by ~3.5×, making situasjonskart the weakest-represented class.
+- ~14% of label files (154) are present but empty, presumably negative/background examples rather than missing annotations.
+- **Labeling bug found**: `data/train/labels/gnr-bnr53-354_fasade_sør_page_1.txt` has a class token of `w0` instead of a numeric class id — unparseable by strict `int()` loaders and likely silently dropped by Ultralytics' loader. Needs a manual fix.
+
+#### `data_seg/` — segmentation (room outlines within floor plans), 237 MB on disk
+
+1 class (`rom`), polygon-format labels (one line per room instance), presumably a re-annotated subset of the `plantegning` images from `data/`.
+
+| Split | Images | Label files | Room instances | Avg rooms / labeled image | Images w/ no label file |
+|---|--:|--:|--:|--:|--:|
+| train | 355 | 354 | 1,651 | 4.7 | 0 |
+| test | 110 | 1 | 5 | 5.0 | **109** |
+| val | 48 | 48 | 233 | 4.9 | 0 |
+| **Total** | **513** | **403** | **1,889** | **4.7** | **109** |
+
+- The segmentation **test split is essentially unlabeled** — 109 of its 110 images have no label file at all, confirming it functions as a qualitative/visual holdout rather than a scored eval set.
+- Average room count per labeled floor plan is consistent across train/val (~4.7–4.9 rooms/image), a reasonable signal of consistent labeling.
 
 ### 5.3 Data preparation (`training/dataPrep/`)
 
@@ -339,6 +377,7 @@ Note: `.env.dev`'s `OBJECT_DETECTION_YAML=data_obj/data.yaml` references a `data
 5. **Dead code**: `FeedbackView.vue`/`/feedback` route, `ProgressBar.vue`, `FileUploader.vue`, `fileHelpers.js` stub (frontend); `json_response_converter` defined but unused in `detect`; `performance` service's snitt/situasjonskart metrics unimplemented.
 6. **Two unreconciled inference deployment paths** — the running Docker/ACI `detect` service vs. an experimental Azure ML managed online endpoint.
 7. **Config path mismatches** in `.env.dev` (`data_obj/` vs `data/`, `data_seg/data.yaml` vs `data_seg/data_seg.yaml`).
+8. **Dataset labeling bug** — `data/train/labels/gnr-bnr53-354_fasade_sør_page_1.txt` has a non-numeric class token (`w0`), unparseable by strict YOLO label loaders. Also, the segmentation dataset's test split (`data_seg/test/`) has label files for only 1 of its 110 images, so it can't be used for quantitative segmentation eval (see §5.2).
 
 ---
 
