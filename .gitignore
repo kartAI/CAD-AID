@@ -3,6 +3,8 @@
 fast_api/static/uploads
 fast_api/__pycache__
 fast_api/src/__pycache__
+__pycache__/
+*.pyc
 
 runs/DS_Store
 
