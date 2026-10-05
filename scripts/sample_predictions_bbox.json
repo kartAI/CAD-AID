@@ -1,0 +1,132 @@
+{
+ " Eigemyrveien 7B_page_5.jpg": [
+  {
+   "label": "plantegning",
+   "score": 0.79,
+   "bbox": [
+    519.7,
+    554.4,
+    1126.2,
+    1219.8
+   ]
+  },
+  {
+   "label": "plantegning",
+   "score": 0.61,
+   "bbox": [
+    654.5,
+    1647.6,
+    1013.4,
+    1880.7
+   ]
+  },
+  {
+   "label": "snitt",
+   "score": 0.77,
+   "bbox": [
+    673.8,
+    1378.6,
+    1013.1,
+    1567.1
+   ]
+  },
+  {
+   "label": "snitt",
+   "score": 0.35,
+   "bbox": [
+    50.0,
+    50.0,
+    300.0,
+    250.0
+   ]
+  }
+ ],
+ "751473.PDF_page_1.jpg": [
+  {
+   "label": "plantegning",
+   "score": 0.61,
+   "bbox": [
+    369.1,
+    513.4,
+    1802.3,
+    2903.1
+   ]
+  },
+  {
+   "label": "plantegning",
+   "score": 0.68,
+   "bbox": [
+    1901.3,
+    718.1,
+    6336.0,
+    3982.1
+   ]
+  }
+ ],
+ "Auglandsstien 9_eksisterende_page_2.jpg": [
+  {
+   "label": "plantegning",
+   "score": 0.79,
+   "bbox": [
+    1357.1,
+    197.5,
+    2208.1,
+    1429.9
+   ]
+  },
+  {
+   "label": "fasade",
+   "score": 0.71,
+   "bbox": [
+    372.7,
+    174.5,
+    1081.9,
+    1265.0
+   ]
+  }
+ ],
+ "Brenneveien446_fasade2_page_1.jpg": [
+  {
+   "label": "fasade",
+   "score": 0.67,
+   "bbox": [
+    891.1,
+    420.9,
+    1736.8,
+    807.1
+   ]
+  },
+  {
+   "label": "fasade",
+   "score": 0.87,
+   "bbox": [
+    1065.6,
+    1525.0,
+    1691.0,
+    1883.6
+   ]
+  }
+ ],
+ "Brenneveien446_snitt_page_1.jpg": [
+  {
+   "label": "snitt",
+   "score": 0.85,
+   "bbox": [
+    935.6,
+    465.8,
+    1740.1,
+    874.5
+   ]
+  },
+  {
+   "label": "snitt",
+   "score": 0.79,
+   "bbox": [
+    983.2,
+    1543.4,
+    1685.1,
+    1963.3
+   ]
+  }
+ ]
+}
