@@ -1,0 +1,76 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Label viewer</title>
+<style>
+  body { font: 14px system-ui; margin: 0; display: flex; height: 100vh }
+  #side { width: 260px; overflow: auto; padding: 8px; border-right: 1px solid #ccc }
+  #side div.i { cursor: pointer; padding: 2px 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis }
+  #side div.i.sel { background: #cde }
+  #main { flex: 1; overflow: auto; padding: 8px }
+  #wrap { position: relative; display: inline-block }
+  img { max-width: 100%; display: block }
+  svg { position: absolute; left: 0; top: 0; width: 100%; height: 100% }
+</style>
+<div id="side">
+  <input type="file" id="file" accept=".json" hidden>
+  <div id="filters"></div><hr>
+  <label><input type="checkbox" id="only"> only images with checked labels</label>
+  <div id="count"></div><div id="list"></div>
+</div>
+<div id="main"><div id="info"></div><div id="wrap"></div></div>
+<script>
+const COLORS = ["#e6194b","#3cb44b","#4363d8","#f58231","#911eb4","#008080","#9a6324","#800000"];
+let data = [], active = new Set(), cur = 0, view = [];
+const $ = id => document.getElementById(id);
+
+fetch("labels.json").then(r => r.json()).then(init).catch(() => {
+  $("file").hidden = false;
+  $("file").onchange = e => e.target.files[0].text().then(t => init(JSON.parse(t)));
+});
+
+function init(d) {
+  data = d; $("file").hidden = true;
+  const cls = new Map();
+  d.forEach(r => r.labels.forEach(l => cls.set(l.label, l.text)));
+  [...cls].sort((a, b) => a[0] - b[0]).forEach(([id, text]) => {
+    active.add(id);
+    const c = document.createElement("label");
+    c.style.display = "block";
+    c.innerHTML = `<input type="checkbox" checked> <span style="color:${COLORS[id % 8]}">■</span> ${text}`;
+    c.firstChild.onchange = e => { e.target.checked ? active.add(id) : active.delete(id); refresh(); };
+    $("filters").append(c);
+  });
+  $("only").onchange = refresh;
+  onkeydown = e => { if (e.key == "ArrowDown" || e.key == "ArrowRight") show(cur + 1);
+                     if (e.key == "ArrowUp" || e.key == "ArrowLeft") show(cur - 1); };
+  refresh();
+}
+
+function refresh() {
+  const name = view[cur]?.image;
+  view = data.filter(r => !$("only").checked || r.labels.some(l => active.has(l.label)));
+  $("count").textContent = `${view.length} / ${data.length} images`;
+  $("list").replaceChildren(...view.map((r, i) => {
+    const d = document.createElement("div");
+    d.className = "i"; d.textContent = r.image; d.title = r.image; d.onclick = () => show(i);
+    return d;
+  }));
+  show(Math.max(0, view.findIndex(r => r.image == name)));
+}
+
+function show(i) {
+  if (!view.length) { $("wrap").replaceChildren(); $("info").textContent = ""; return; }
+  cur = Math.min(Math.max(i, 0), view.length - 1);
+  const r = view[cur];
+  [...$("list").children].forEach((d, j) => d.classList.toggle("sel", j == cur));
+  $("list").children[cur].scrollIntoView({ block: "nearest" });
+  const shown = r.labels.filter(l => active.has(l.label));
+  $("info").textContent = `${r.image} [${r.split}] — ${shown.length}/${r.labels.length} labels shown`;
+  const boxes = shown.map(l => {
+    const [x1, y1, x2, y2] = l.bbox, c = COLORS[l.label % 8], fs = r.width / 60;
+    return `<rect x="${x1}" y="${y1}" width="${x2 - x1}" height="${y2 - y1}" fill="none" stroke="${c}" stroke-width="${r.width / 400}"/>
+            <text x="${x1 + 3}" y="${y1 + fs}" font-size="${fs}" fill="${c}" stroke="#fff" stroke-width="${fs / 15}" paint-order="stroke">${l.text}</text>`;
+  }).join("");
+  $("wrap").innerHTML = `<img src="images/${encodeURIComponent(r.image)}"><svg viewBox="0 0 ${r.width} ${r.height}">${boxes}</svg>`;
+}
+</script>
